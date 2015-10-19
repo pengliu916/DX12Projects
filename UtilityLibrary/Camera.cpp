@@ -297,7 +297,6 @@ LRESULT CBaseCamera::HandleMessages( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 				{
 					m_aKeys[mappedKey] = KEY_WAS_DOWN_MASK | KEY_IS_DOWN_MASK;
 					++m_cKeysDown;
-					Trace( L"%d WM_KEYDOWN\n",m_cKeysDown );
 				}
 			}
 			break;
@@ -313,7 +312,6 @@ LRESULT CBaseCamera::HandleMessages( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 			{
 				m_aKeys[mappedKey] &= ~KEY_IS_DOWN_MASK;
 				--m_cKeysDown;
-				Trace( L"%d WM_KEYUP\n", m_cKeysDown );
 			}
 			break;
 		}
@@ -768,10 +766,8 @@ void CModelViewerCamera::FrameMove( _In_ float fElapsedTime )
 	// and no camera key is held down, then no need to handle again.
 	if ( !m_bDragSinceLastUpdate && 0 == m_cKeysDown )
 	{
-		Trace( L"%d Skipped!!!!!---------------\n", m_cKeysDown );
 		return;
 	}
-	Trace( L"%d\n", m_cKeysDown );
 	m_bDragSinceLastUpdate = false;
 
 	//// If no mouse button is held down, 
@@ -1004,36 +1000,4 @@ LRESULT CModelViewerCamera::HandleMessages( HWND hWnd, UINT uMsg, WPARAM wParam,
 	}
 
 	return FALSE;
-}
-
-
-
-void CFirstPersonCamera::Get3DViewProjMatrices( XMFLOAT4X4 *view, XMFLOAT4X4 *proj, float fovInDegrees, float screenWidth, float screenHeight )
-{
-
-	float aspectRatio = ( float ) screenWidth / ( float ) screenHeight;
-	float fovAngleY = fovInDegrees * XM_PI / 180.0f;
-
-	if ( aspectRatio < 1.0f )
-	{
-		fovAngleY /= aspectRatio;
-	}
-
-	XMStoreFloat4x4( view, XMMatrixTranspose( DirectX::XMLoadFloat4x4( &m_mView ) ) );
-	XMStoreFloat4x4( proj, XMMatrixTranspose( DirectX::XMLoadFloat4x4( &m_mProj ) ) );
-}
-
-void CModelViewerCamera::Get3DViewProjMatrices( XMFLOAT4X4 *view, XMFLOAT4X4 *proj, float fovInDegrees, float screenWidth, float screenHeight )
-{
-
-	float aspectRatio = ( float ) screenWidth / ( float ) screenHeight;
-	float fovAngleY = fovInDegrees * XM_PI / 180.0f;
-
-	if ( aspectRatio < 1.0f )
-	{
-		fovAngleY /= aspectRatio;
-	}
-
-	XMStoreFloat4x4( view, XMMatrixTranspose( DirectX::XMLoadFloat4x4( &m_mView ) ) );
-	XMStoreFloat4x4( proj, XMMatrixTranspose( DirectX::XMLoadFloat4x4( &m_mProj ) ) );
 }

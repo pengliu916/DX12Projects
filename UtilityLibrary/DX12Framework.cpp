@@ -12,11 +12,10 @@
 #include "LibraryHeader.h"
 #include "DX12Framework.h"
 #include <shellapi.h>
+#include <thread>
 
 DX12Framework::DX12Framework(UINT width, UINT height, std::wstring name):
-	m_width(width),
-	m_height(height),
-	m_useWarpDevice(false)
+	_stopped(false),_error(false),m_width(width),m_height(height),m_useWarpDevice(false)
 {
 	ParseCommandLineArgs();
 
@@ -25,12 +24,28 @@ DX12Framework::DX12Framework(UINT width, UINT height, std::wstring name):
 	WCHAR assetsPath[512];
 	GetAssetsPath(assetsPath, _countof(assetsPath));
 	m_assetsPath = assetsPath;
-
-	UpdateForSizeChange( width, height );
+	m_aspectRatio = static_cast< float >( m_width ) / static_cast< float >( m_height );
 }
 
 DX12Framework::~DX12Framework()
 {
+}
+
+void DX12Framework::RenderLoop()
+{
+	// Initialize the sample. OnInit is defined in each child-implementation of DXSample.
+	OnInit();
+	while ( !_stopped && !_error )
+	{
+		if ( _resize )
+		{
+			_resize = false;
+			OnSizeChanged();
+		}
+		OnUpdate();
+		OnRender();
+	}
+	OnDestroy();
 }
 
 int DX12Framework::Run(HINSTANCE hInstance, int nCmdShow)
@@ -64,8 +79,7 @@ int DX12Framework::Run(HINSTANCE hInstance, int nCmdShow)
 
 	ShowWindow(m_hwnd, nCmdShow);
 
-	// Initialize the sample. OnInit is defined in each child-implementation of DXSample.
-	OnInit();
+	std::thread renderThread( &DX12Framework::RenderLoop, this );
 
 	// Main sample loop.
 	MSG msg = { 0 };
@@ -81,18 +95,11 @@ int DX12Framework::Run(HINSTANCE hInstance, int nCmdShow)
 			OnEvent(msg);
 		}
 	}
-
-	OnDestroy();
-
+	_stopped = true;
+	if(renderThread.joinable() )
+		renderThread.join();
 	// Return this part of the WM_QUIT message to Windows.
 	return static_cast<char>(msg.wParam);
-}
-
-void DX12Framework::UpdateForSizeChange( UINT clientWidth, UINT clientHeight )
-{
-	m_width = clientWidth;
-	m_height = clientHeight;
-	m_aspectRatio = static_cast< float >( clientWidth ) / static_cast< float >( clientHeight );
 }
 
 // Helper function for resolving the full path of assets.
@@ -171,20 +178,20 @@ LRESULT CALLBACK DX12Framework::WindowProc(HWND hWnd, UINT message, WPARAM wPara
 		}
 		return 0;
 
-	case WM_PAINT:
-		if ( pSample )
-		{
-			pSample->OnUpdate();
-			pSample->OnRender();
-		}
-		return 0;
-
 	case WM_SIZE:
 		if( pSample )
 		{
 			RECT clientRect = {};
 			GetClientRect( hWnd, &clientRect );
-			pSample->OnSizeChanged( clientRect.right - clientRect.left, clientRect.bottom - clientRect.top, wParam == SIZE_MINIMIZED );
+			UINT _width = clientRect.right - clientRect.left;
+			UINT _height = clientRect.bottom - clientRect.top;
+			if ( pSample->m_width != _width || pSample->m_height != _height )
+			{
+				pSample->m_width = _width;
+				pSample->m_height = _height;
+				pSample->m_aspectRatio = static_cast< float >( _width ) / static_cast< float >( _height );
+				pSample->_resize = true;
+			}
 		}
 		return 0;
 

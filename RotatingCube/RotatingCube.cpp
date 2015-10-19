@@ -327,38 +327,30 @@ void RotatingCube::OnRender()
 	WaitForPreviousFrame();
 }
 
-void RotatingCube::OnSizeChanged( UINT width, UINT height, bool minimized )
+void RotatingCube::OnSizeChanged()
 {
-	// Determine if the swap buffers and other resources need to be resized or not.
-	if ( ( width != m_width || height != m_height ) )
+	// Flush all current GPU commands.
+	WaitForPreviousFrame();
+
+	// Release the resources holding references to the swap chain (requirement of
+	// IDXGISwapChain::ResizeBuffers) and reset the frame fence values to the
+	// current fence value.
+	for ( UINT n = 0; n < FrameCount; n++ )
 	{
-		// Flush all current GPU commands.
-		WaitForPreviousFrame();
-
-		// Release the resources holding references to the swap chain (requirement of
-		// IDXGISwapChain::ResizeBuffers) and reset the frame fence values to the
-		// current fence value.
-		for ( UINT n = 0; n < FrameCount; n++ )
-		{
-			m_renderTargets[n].Reset();
-		}
-
-		// Resize the swap chain to the desired dimensions.
-		DXGI_SWAP_CHAIN_DESC desc = {};
-		m_swapChain->GetDesc( &desc );
-		ThrowIfFailed( m_swapChain->ResizeBuffers( FrameCount, width, height, desc.BufferDesc.Format, desc.Flags ) );
-
-		m_depthBuffer.Reset();
-
-		LoadSizeDependentResource();
-		
-		// Reset the frame index to the current back buffer index.
-		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
-
-		// Update the width, height, and aspect ratio member variables.
-		UpdateForSizeChange( width, height );
-
+		m_renderTargets[n].Reset();
 	}
+
+	// Resize the swap chain to the desired dimensions.
+	DXGI_SWAP_CHAIN_DESC desc = {};
+	m_swapChain->GetDesc( &desc );
+	ThrowIfFailed( m_swapChain->ResizeBuffers( FrameCount, m_width, m_height, desc.BufferDesc.Format, desc.Flags ) );
+
+	m_depthBuffer.Reset();
+
+	LoadSizeDependentResource();
+
+	// Reset the frame index to the current back buffer index.
+	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
 

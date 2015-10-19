@@ -16,7 +16,7 @@ protected:
 	virtual void OnInit();
 	virtual void OnUpdate();
 	virtual void OnRender();
-	virtual void OnSizeChanged( UINT width, UINT height, bool minimized );
+	virtual void OnSizeChanged();
 	virtual void OnDestroy();
 	virtual bool OnEvent( MSG msg );
 
