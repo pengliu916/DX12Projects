@@ -12,7 +12,6 @@
 //--------------------------------------------------------------------------------------
 #include "LibraryHeader.h"
 #include "Camera.h"
-#include "Utility.h"
 
 using namespace DirectX;
 
