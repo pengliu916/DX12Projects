@@ -40,6 +40,24 @@ void RotatingCube::LoadPipeline()
 		GetHardwareAdapter( factory.Get(), &hardwareAdapter );
 		ThrowIfFailed( D3D12CreateDevice(hardwareAdapter.Get(),D3D_FEATURE_LEVEL_11_0,IID_PPV_ARGS( &m_device )) );
 	}
+	
+	// Check Direct3D 12 feature hardware support (more usage refer Direct3D 12 sdk Capability Querying)
+	D3D12_FEATURE_DATA_D3D12_OPTIONS options;
+	m_device->CheckFeatureSupport( D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof( options ) );
+	switch ( options.ResourceBindingTier )
+	{
+	case D3D12_RESOURCE_BINDING_TIER_1:
+		PrintWarning( L"Tier 1 is supported." );
+		break;
+	case D3D12_RESOURCE_BINDING_TIER_2:
+		PrintWarning( L"Tier 1 and 2 are supported." );
+		break;
+	case D3D12_RESOURCE_BINDING_TIER_3:
+		PrintWarning( L"Tier 1, 2 and 3 are supported." );
+		break;
+	default:
+		break;
+	}
 
 	// Describe and create the command queue.
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};

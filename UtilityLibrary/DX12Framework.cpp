@@ -11,16 +11,26 @@
 
 #include "LibraryHeader.h"
 #include "DX12Framework.h"
+#include "Utility.h"
 #include <shellapi.h>
 #include <thread>
+
+CRITICAL_SECTION outputCS;
 
 DX12Framework::DX12Framework(UINT width, UINT height, std::wstring name):
 	_stopped(false),_error(false),m_width(width),m_height(height),m_useWarpDevice(false)
 {
+	// Initialize output critical section
+	InitializeCriticalSection( &outputCS );
+
+#ifdef _DEBUG
+	AttachConsole();
+#endif
+
 	ParseCommandLineArgs();
 
 	m_title = name + (m_useWarpDevice ? L" (WARP)" : L"");
-
+	PrintInfo( L"%s start", m_title.c_str() );
 	WCHAR assetsPath[512];
 	GetAssetsPath(assetsPath, _countof(assetsPath));
 	m_assetsPath = assetsPath;
