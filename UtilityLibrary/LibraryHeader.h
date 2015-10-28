@@ -18,7 +18,7 @@
 
 #include <string>
 #include <wrl.h>
-
+#include <atomic>
 
 typedef DirectX::XMFLOAT2 float2;
 typedef DirectX::XMFLOAT3 float3;

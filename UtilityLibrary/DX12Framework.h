@@ -28,15 +28,15 @@ protected:
 
 	static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+	bool _stopped;
+	bool _error;
 	// In multi-thread scenario, current thread may read old version of the following boolean due to 
-	// unflushed cache, but these are not critical variables so we can live without heavy synchronization 
-	// stuffs like std::atomic<bool> 
-	volatile bool _stopped;
-	volatile bool _error;
+	// unflushed cache etc. So to use flag in multi-thread cases, atomic bool is needed, and memory order semantic is crucial 
+	std::atomic<bool> _resize;
+
 	// Viewport dimensions.
-	volatile UINT m_width;
-	volatile UINT m_height;
-	volatile bool _resize;
+	UINT m_width;
+	UINT m_height;
 	float m_aspectRatio;
 
 	// Window handle.

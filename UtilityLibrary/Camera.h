@@ -286,8 +286,7 @@ public:
 	DirectX::XMVECTOR GetWorldUp() const { return DirectX::XMLoadFloat3( reinterpret_cast< const DirectX::XMFLOAT3* >( &m_mCameraWorld._21 ) ); }
 	DirectX::XMVECTOR GetWorldAhead() const { return DirectX::XMLoadFloat3( reinterpret_cast< const DirectX::XMFLOAT3* >( &m_mCameraWorld._31 ) ); }
 	DirectX::XMVECTOR GetEyePt() const { return DirectX::XMLoadFloat3( reinterpret_cast< const DirectX::XMFLOAT3* >( &m_mCameraWorld._41 ) ); }
-	void Get3DViewProjMatrices( DirectX::XMFLOAT4X4 *view, DirectX::XMFLOAT4X4 *proj, float fovInDegrees, float screenWidth, float screenHeight );
-
+	
 protected:
 	DirectX::XMFLOAT4X4 m_mCameraWorld; // World matrix of the camera (inverse of the view matrix)
 
@@ -349,7 +348,6 @@ public:
 		XMStoreFloat4x4( &m_mWorld, mWorld );
 		m_bDragSinceLastUpdate = true;
 	}
-	void Get3DViewProjMatrices( DirectX::XMFLOAT4X4 *view, DirectX::XMFLOAT4X4 *proj, float fovInDegrees, float screenWidth, float screenHeight );
 
 protected:
 	CD3DArcBall m_WorldArcBall;

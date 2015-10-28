@@ -47,9 +47,9 @@ void DX12Framework::RenderLoop()
 	OnInit();
 	while ( !_stopped && !_error )
 	{
-		if ( _resize )
+		if ( _resize.load(memory_order_acquire) )
 		{
-			_resize = false;
+			_resize.store(false,memory_order_release);
 			OnSizeChanged();
 		}
 		OnUpdate();
@@ -200,7 +200,7 @@ LRESULT CALLBACK DX12Framework::WindowProc(HWND hWnd, UINT message, WPARAM wPara
 				pSample->m_width = _width;
 				pSample->m_height = _height;
 				pSample->m_aspectRatio = static_cast< float >( _width ) / static_cast< float >( _height );
-				pSample->_resize = true;
+				pSample->_resize.store(true,memory_order_release);
 			}
 		}
 		return 0;
