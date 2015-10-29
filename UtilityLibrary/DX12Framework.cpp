@@ -14,6 +14,8 @@
 #include "Utility.h"
 #include <shellapi.h>
 
+using namespace Microsoft::WRL;
+
 CRITICAL_SECTION outputCS;
 
 DX12Framework::DX12Framework(UINT width, UINT height, std::wstring name):
@@ -122,13 +124,13 @@ std::wstring DX12Framework::GetAssetFullPath(LPCWSTR assetName)
 _Use_decl_annotations_
 void DX12Framework::GetHardwareAdapter( IDXGIFactory4* pFactory, IDXGIAdapter1** ppAdapter )
 {
-	IDXGIAdapter1* pAdapter = nullptr;
+	ComPtr<IDXGIAdapter1> adapter;
 	*ppAdapter = nullptr;
 
-	for ( UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != pFactory->EnumAdapters1( adapterIndex, &pAdapter ); ++adapterIndex )
+	for ( UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != pFactory->EnumAdapters1( adapterIndex, &adapter ); ++adapterIndex )
 	{
 		DXGI_ADAPTER_DESC1 desc;
-		pAdapter->GetDesc1( &desc );
+		adapter->GetDesc1( &desc );
 
 		if ( desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE )
 		{
@@ -139,13 +141,13 @@ void DX12Framework::GetHardwareAdapter( IDXGIFactory4* pFactory, IDXGIAdapter1**
 
 		// Check to see if the adapter supports Direct3D 12, but don't create the
 		// actual device yet.
-		if ( SUCCEEDED( D3D12CreateDevice( pAdapter, D3D_FEATURE_LEVEL_11_0, _uuidof( ID3D12Device ), nullptr ) ) )
+		if ( SUCCEEDED( D3D12CreateDevice( adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof( ID3D12Device ), nullptr ) ) )
 		{
 			break;
 		}
 	}
 
-	*ppAdapter = pAdapter;
+	*ppAdapter = adapter.Detach();
 }
 
 // Helper function for setting the window's title text.
