@@ -5,6 +5,7 @@
 #include <io.h>
 #include <iostream>
 #include <fcntl.h>
+#include <thread>
 
 using namespace std;
 
@@ -12,7 +13,7 @@ extern  CRITICAL_SECTION outputCS;
 class CriticalSectionScope
 {
 public:
-	CriticalSectionScope( CRITICAL_SECTION *cs ) :m_cs( cs )
+	explicit CriticalSectionScope( CRITICAL_SECTION *cs ) :m_cs( cs )
 	{
 		EnterCriticalSection( m_cs );
 	}
@@ -20,8 +21,26 @@ public:
 	{
 		LeaveCriticalSection( m_cs );
 	}
+	CriticalSectionScope( CriticalSectionScope const & ) = delete;
+	CriticalSectionScope& operator=( CriticalSectionScope const& ) = delete;
 private:
 	CRITICAL_SECTION *m_cs;
+};
+
+class thread_guard
+{
+public:
+	thread_guard( thread& _t ) :t( _t ){}
+	~thread_guard()
+	{
+		if ( t.joinable() )
+			t.join();
+	}
+
+	thread_guard( thread_guard const& ) = delete;
+	thread_guard& operator=( thread_guard const& ) = delete;
+private:
+	thread& t;
 };
 
 //--------------------------------------------------------------------------------------

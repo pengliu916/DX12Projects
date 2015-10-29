@@ -13,7 +13,6 @@
 #include "DX12Framework.h"
 #include "Utility.h"
 #include <shellapi.h>
-#include <thread>
 
 CRITICAL_SECTION outputCS;
 
@@ -39,6 +38,8 @@ DX12Framework::DX12Framework(UINT width, UINT height, std::wstring name):
 
 DX12Framework::~DX12Framework()
 {
+	// Delete output critical section
+	DeleteCriticalSection( &outputCS );
 }
 
 void DX12Framework::RenderLoop()
@@ -90,7 +91,7 @@ int DX12Framework::Run(HINSTANCE hInstance, int nCmdShow)
 	ShowWindow(m_hwnd, nCmdShow);
 
 	std::thread renderThread( &DX12Framework::RenderLoop, this );
-
+	thread_guard g( renderThread );
 	// Main sample loop.
 	MSG msg = { 0 };
 	while ( msg.message != WM_QUIT )
@@ -106,8 +107,6 @@ int DX12Framework::Run(HINSTANCE hInstance, int nCmdShow)
 		}
 	}
 	_stopped = true;
-	if(renderThread.joinable() )
-		renderThread.join();
 	// Return this part of the WM_QUIT message to Windows.
 	return static_cast<char>(msg.wParam);
 }
