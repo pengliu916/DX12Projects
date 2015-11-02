@@ -1,15 +1,24 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// This code is licensed under the MIT License (MIT).
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
-
 #pragma once
+#include <comdef.h>
+#include <tchar.h>
+#include "Utility.h"
+
+#define __FILENAME__ (wcsrchr (_T(__FILE__), L'\\') ? wcsrchr (_T(__FILE__), L'\\') + 1 : _T(__FILE__))
+#if defined(DEBUG) || defined(_DEBUG)
+#ifndef V
+#define V(x)           { hr = (x); if( FAILED(hr) ) { DXTrace( __FILENAME__, (DWORD)__LINE__, hr, L###x); } }
+#endif //#ifndef V
+#ifndef VRET
+#define VRET(x)           { hr = (x); if( FAILED(hr) ) { return DXTrace( __FILENAME__, (DWORD)__LINE__, hr, L###x); } }
+#endif //#ifndef VRET
+#else
+#ifndef V
+#define V(x)           { hr = (x); }
+#endif //#ifndef V
+#ifndef VRET
+#define VRET(x)           { hr = (x); if( FAILED(hr) ) { return hr; } }
+#endif //#ifndef VRET
+#endif //#if defined(DEBUG) || defined(_DEBUG)
 
 inline void ThrowIfFailed(HRESULT hr)
 {
@@ -17,6 +26,20 @@ inline void ThrowIfFailed(HRESULT hr)
 	{
 		throw;
 	}
+}
+
+inline void DXTrace( const wchar_t* strFile, DWORD dwLine, HRESULT hr, const wchar_t* strMsg )
+{
+	wchar_t szBuffer[MAX_MSG_LENGTH];
+	int offset = 0;
+	if ( strFile )
+	{
+		offset += wsprintf( szBuffer, L"line %u in file %s\n", dwLine, strFile );
+	}
+	offset += wsprintf( szBuffer + offset, L"Calling: %s failed!\n ", strMsg );
+	_com_error err( hr );
+	wsprintf( szBuffer + offset, err.ErrorMessage());
+	PRINTERROR( szBuffer );
 }
 
 inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
@@ -39,6 +62,29 @@ inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
 	{
 		*(lastSlash+1) = NULL;
 	}
+}
+
+inline HRESULT CompileShaderFromFile( LPCWSTR pFileName,const D3D_SHADER_MACRO* pDefines, ID3DInclude* pInclude, 
+									  LPCSTR pEntrypoint,LPCSTR pTarget,UINT Flags1, UINT Flags2,ID3DBlob** ppCode )
+{
+	HRESULT hr;
+#if defined( DEBUG ) || defined( _DEBUG )
+	// Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
+	// Setting this flag improves the shader debugging experience, but still allows 
+	// the shaders to be optimized and to run exactly the way they will run in 
+	// the release configuration of this program.
+	Flags1 |= D3DCOMPILE_DEBUG;
+#endif
+
+	ID3DBlob* pErrorBlob = nullptr;
+	hr = D3DCompileFromFile( pFileName, pDefines, pInclude, pEntrypoint, pTarget, Flags1, Flags2, ppCode, &pErrorBlob );
+	if ( pErrorBlob )
+	{
+		PRINTERROR( reinterpret_cast< const char* >( pErrorBlob->GetBufferPointer() ) );
+		pErrorBlob->Release();
+	}
+
+	return hr;
 }
 
 inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)

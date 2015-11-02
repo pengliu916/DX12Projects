@@ -1,14 +1,3 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// This code is licensed under the MIT License (MIT).
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
-
 #include "LibraryHeader.h"
 #include "DX12Framework.h"
 #include "Utility.h"
@@ -31,7 +20,7 @@ DX12Framework::DX12Framework(UINT width, UINT height, std::wstring name):
 	ParseCommandLineArgs();
 
 	m_title = name + (m_useWarpDevice ? L" (WARP)" : L"");
-	PrintInfo( L"%s start", m_title.c_str() );
+	PRINTINFO( L"%s start", m_title.c_str() );
 	WCHAR assetsPath[512];
 	GetAssetsPath(assetsPath, _countof(assetsPath));
 	m_assetsPath = assetsPath;

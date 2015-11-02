@@ -47,13 +47,13 @@ void RotatingCube::LoadPipeline()
 	switch ( options.ResourceBindingTier )
 	{
 	case D3D12_RESOURCE_BINDING_TIER_1:
-		PrintWarning( L"Tier 1 is supported." );
+		PRINTWARN( L"Tier 1 is supported." );
 		break;
 	case D3D12_RESOURCE_BINDING_TIER_2:
-		PrintWarning( L"Tier 1 and 2 are supported." );
+		PRINTWARN( L"Tier 1 and 2 are supported." );
 		break;
 	case D3D12_RESOURCE_BINDING_TIER_3:
-		PrintWarning( L"Tier 1, 2 and 3 are supported." );
+		PRINTWARN( L"Tier 1, 2 and 3 are supported." );
 		break;
 	default:
 		break;
@@ -120,6 +120,7 @@ void RotatingCube::LoadPipeline()
 // Load the sample assets.
 void RotatingCube::LoadAssets()
 {
+	HRESULT	hr;
 	// Create an empty root signature.
 	{
 		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
@@ -149,9 +150,11 @@ void RotatingCube::LoadAssets()
 		UINT compileFlags = 0;
 #endif
 
-		ThrowIfFailed( D3DCompileFromFile( GetAssetFullPath( L"shaders.hlsl" ).c_str(), nullptr, nullptr, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr ) );
-		ThrowIfFailed( D3DCompileFromFile( GetAssetFullPath( L"shaders.hlsl" ).c_str(), nullptr, nullptr, "psmain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr ) );
-	
+		//ThrowIfFailed( D3DCompileFromFile( GetAssetFullPath( L"shaders.hlsl" ).c_str(), nullptr, nullptr, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr ) );
+		//ThrowIfFailed( D3DCompileFromFile( GetAssetFullPath( L"shaders.hlsl" ).c_str(), nullptr, nullptr, "psmain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr ) );
+		
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T("shaders.hlsl" )).c_str(), nullptr, nullptr, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader ) );
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T("shaders.hlsl") ).c_str(), nullptr, nullptr, "psmain", "ps_5_0", compileFlags, 0, &pixelShader ) );
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
 		{
