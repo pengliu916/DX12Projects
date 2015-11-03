@@ -13,10 +13,10 @@ public:
 	RotatingCube( UINT width, UINT height, std::wstring name );
 
 protected:
-	virtual void OnInit();
+	virtual HRESULT OnInit();
+	virtual HRESULT OnSizeChanged();
 	virtual void OnUpdate();
 	virtual void OnRender();
-	virtual void OnSizeChanged();
 	virtual void OnDestroy();
 	virtual bool OnEvent( MSG msg );
 
@@ -61,9 +61,9 @@ private:
 	ComPtr<ID3D12Fence> m_fence;
 	UINT64 m_fenceValue;
 
-	void LoadPipeline();
-	void LoadAssets();
-	void LoadSizeDependentResource();
+	HRESULT LoadPipeline();
+	HRESULT LoadAssets();
+	HRESULT LoadSizeDependentResource();
 	void PopulateCommandList();
 	void WaitForPreviousFrame();
 };

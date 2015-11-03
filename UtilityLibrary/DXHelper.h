@@ -6,10 +6,10 @@
 #define __FILENAME__ (wcsrchr (_T(__FILE__), L'\\') ? wcsrchr (_T(__FILE__), L'\\') + 1 : _T(__FILE__))
 #if defined(DEBUG) || defined(_DEBUG)
 #ifndef V
-#define V(x)           { hr = (x); if( FAILED(hr) ) { DXTrace( __FILENAME__, (DWORD)__LINE__, hr, L###x); } }
+#define V(x)           { hr = (x); if( FAILED(hr) ) { DXTrace( __FILENAME__, (DWORD)__LINE__, hr, L###x); __debugbreak(); } }
 #endif //#ifndef V
 #ifndef VRET
-#define VRET(x)           { hr = (x); if( FAILED(hr) ) { return DXTrace( __FILENAME__, (DWORD)__LINE__, hr, L###x); } }
+#define VRET(x)           { hr = (x); if( FAILED(hr) ) { return DXTrace( __FILENAME__, (DWORD)__LINE__, hr, L###x); __debugbreak(); } }
 #endif //#ifndef VRET
 #else
 #ifndef V
@@ -20,15 +20,7 @@
 #endif //#ifndef VRET
 #endif //#if defined(DEBUG) || defined(_DEBUG)
 
-inline void ThrowIfFailed(HRESULT hr)
-{
-	if (FAILED(hr))
-	{
-		throw;
-	}
-}
-
-inline void DXTrace( const wchar_t* strFile, DWORD dwLine, HRESULT hr, const wchar_t* strMsg )
+inline HRESULT DXTrace( const wchar_t* strFile, DWORD dwLine, HRESULT hr, const wchar_t* strMsg )
 {
 	wchar_t szBuffer[MAX_MSG_LENGTH];
 	int offset = 0;
@@ -40,6 +32,7 @@ inline void DXTrace( const wchar_t* strFile, DWORD dwLine, HRESULT hr, const wch
 	_com_error err( hr );
 	wsprintf( szBuffer + offset, err.ErrorMessage());
 	PRINTERROR( szBuffer );
+	return hr;
 }
 
 inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)

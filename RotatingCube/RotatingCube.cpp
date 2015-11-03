@@ -6,16 +6,19 @@ RotatingCube::RotatingCube( UINT width, UINT height, std::wstring name ) :
 	DX12Framework( width, height, name ),m_frameIndex( 0 ),m_viewport(),m_scissorRect(),m_rtvDescriptorSize( 0 )
 {}
 
-void RotatingCube::OnInit()
+HRESULT RotatingCube::OnInit()
 {
-	LoadPipeline();
-	LoadAssets();
-	LoadSizeDependentResource();
+	HRESULT hr;
+	VRET(LoadPipeline());
+	VRET(LoadAssets());
+	VRET(LoadSizeDependentResource());
+	return S_OK;
 }
 
 // Load the rendering pipeline dependencies.
-void RotatingCube::LoadPipeline()
+HRESULT RotatingCube::LoadPipeline()
 {
+	HRESULT hr;
 #ifdef _DEBUG
 	// Enable the D3D12 debug layer.
 	ComPtr<ID3D12Debug> debugController;
@@ -26,19 +29,19 @@ void RotatingCube::LoadPipeline()
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed( CreateDXGIFactory1( IID_PPV_ARGS( &factory ) ) );
+	VRET( CreateDXGIFactory1( IID_PPV_ARGS( &factory ) ) );
 
 	if ( m_useWarpDevice )
 	{
 		ComPtr<IDXGIAdapter> warpAdapter;
-		ThrowIfFailed( factory->EnumWarpAdapter( IID_PPV_ARGS( &warpAdapter ) ) );
-		ThrowIfFailed( D3D12CreateDevice(warpAdapter.Get(),D3D_FEATURE_LEVEL_11_0,IID_PPV_ARGS( &m_device )) );
+		VRET( factory->EnumWarpAdapter( IID_PPV_ARGS( &warpAdapter ) ) );
+		VRET( D3D12CreateDevice(warpAdapter.Get(),D3D_FEATURE_LEVEL_11_0,IID_PPV_ARGS( &m_device )) );
 	}
 	else
 	{
 		ComPtr<IDXGIAdapter1> hardwareAdapter;
 		GetHardwareAdapter( factory.Get(), &hardwareAdapter );
-		ThrowIfFailed( D3D12CreateDevice(hardwareAdapter.Get(),D3D_FEATURE_LEVEL_11_0,IID_PPV_ARGS( &m_device )) );
+		VRET( D3D12CreateDevice(hardwareAdapter.Get(),D3D_FEATURE_LEVEL_11_0,IID_PPV_ARGS( &m_device )) );
 	}
 	
 	// Check Direct3D 12 feature hardware support (more usage refer Direct3D 12 sdk Capability Querying)
@@ -64,7 +67,7 @@ void RotatingCube::LoadPipeline()
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	ThrowIfFailed( m_device->CreateCommandQueue( &queueDesc, IID_PPV_ARGS( &m_commandQueue ) ) );
+	VRET( m_device->CreateCommandQueue( &queueDesc, IID_PPV_ARGS( &m_commandQueue ) ) );
 	DXDebugName( m_commandQueue );
 
 	// Describe and create the swap chain.
@@ -81,8 +84,8 @@ void RotatingCube::LoadPipeline()
 
 	ComPtr<IDXGISwapChain> swapChain;
 	// Swap chain needs the queue so that it can force a flush on it.
-	ThrowIfFailed( factory->CreateSwapChain(m_commandQueue.Get(),&swapChainDesc,&swapChain) );
-	ThrowIfFailed( swapChain.As( &m_swapChain ) );
+	VRET( factory->CreateSwapChain(m_commandQueue.Get(),&swapChainDesc,&swapChain) );
+	VRET( swapChain.As( &m_swapChain ) );
 	DXDebugName( m_swapChain );
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -93,7 +96,7 @@ void RotatingCube::LoadPipeline()
 		rtvHeapDesc.NumDescriptors = FrameCount;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		ThrowIfFailed( m_device->CreateDescriptorHeap( &rtvHeapDesc, IID_PPV_ARGS( &m_rtvHeap ) ) );
+		VRET( m_device->CreateDescriptorHeap( &rtvHeapDesc, IID_PPV_ARGS( &m_rtvHeap ) ) );
 		DXDebugName( m_rtvHeap );
 
 		m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_RTV );
@@ -103,7 +106,7 @@ void RotatingCube::LoadPipeline()
 		dsvHeapDesc.NumDescriptors = 1;
 		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		ThrowIfFailed( m_device->CreateDescriptorHeap( &dsvHeapDesc, IID_PPV_ARGS( &m_dsvHeap ) ) );
+		VRET( m_device->CreateDescriptorHeap( &dsvHeapDesc, IID_PPV_ARGS( &m_dsvHeap ) ) );
 		DXDebugName( m_dsvHeap );
 	}
 
@@ -113,12 +116,14 @@ void RotatingCube::LoadPipeline()
 	m_camera.SetEnablePositionMovement( true );
 	m_camera.SetButtonMasks( MOUSE_RIGHT_BUTTON, MOUSE_WHEEL, MOUSE_LEFT_BUTTON );
 
-	ThrowIfFailed( m_device->CreateCommandAllocator( D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS( &m_commandAllocator ) ) );
+	VRET( m_device->CreateCommandAllocator( D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS( &m_commandAllocator ) ) );
 	DXDebugName( m_commandAllocator );
+
+	return S_OK;
 }
 
 // Load the sample assets.
-void RotatingCube::LoadAssets()
+HRESULT RotatingCube::LoadAssets()
 {
 	HRESULT	hr;
 	// Create an empty root signature.
@@ -133,8 +138,8 @@ void RotatingCube::LoadAssets()
 
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
-		ThrowIfFailed( D3D12SerializeRootSignature( &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error ) );
-		ThrowIfFailed( m_device->CreateRootSignature( 0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS( &m_rootSignature ) ) );
+		VRET( D3D12SerializeRootSignature( &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error ) );
+		VRET( m_device->CreateRootSignature( 0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS( &m_rootSignature ) ) );
 		DXDebugName( m_rootSignature );
 	}
 
@@ -150,9 +155,6 @@ void RotatingCube::LoadAssets()
 		UINT compileFlags = 0;
 #endif
 
-		//ThrowIfFailed( D3DCompileFromFile( GetAssetFullPath( L"shaders.hlsl" ).c_str(), nullptr, nullptr, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr ) );
-		//ThrowIfFailed( D3DCompileFromFile( GetAssetFullPath( L"shaders.hlsl" ).c_str(), nullptr, nullptr, "psmain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr ) );
-		
 		VRET( CompileShaderFromFile( GetAssetFullPath( _T("shaders.hlsl" )).c_str(), nullptr, nullptr, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader ) );
 		VRET( CompileShaderFromFile( GetAssetFullPath( _T("shaders.hlsl") ).c_str(), nullptr, nullptr, "psmain", "ps_5_0", compileFlags, 0, &pixelShader ) );
 		// Define the vertex input layout.
@@ -183,12 +185,12 @@ void RotatingCube::LoadAssets()
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 		psoDesc.SampleDesc.Count = 1;
-		ThrowIfFailed( m_device->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &m_pipelineState ) ) );
+		VRET( m_device->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &m_pipelineState ) ) );
 		DXDebugName( m_pipelineState );
 	}
 
 	// Create the command list.
-	ThrowIfFailed( m_device->CreateCommandList( 0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS( &m_commandList ) ) );
+	VRET( m_device->CreateCommandList( 0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS( &m_commandList ) ) );
 	DXDebugName( m_commandList );
 
 	// Create the vertex buffer.
@@ -212,14 +214,14 @@ void RotatingCube::LoadAssets()
 		// recommended. Every time the GPU needs it, the upload heap will be marshalled 
 		// over. Please read up on Default Heap usage. An upload heap is used here for 
 		// code simplicity and because there are very few verts to actually transfer.
-		ThrowIfFailed( m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),D3D12_HEAP_FLAG_NONE,
+		VRET( m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),D3D12_HEAP_FLAG_NONE,
 														  &CD3DX12_RESOURCE_DESC::Buffer( vertexBufferSize ),D3D12_RESOURCE_STATE_GENERIC_READ,
 														  nullptr,IID_PPV_ARGS( &m_vertexBuffer ) ) );
 		DXDebugName( m_vertexBuffer );
 
 		// Copy the triangle data to the vertex buffer.
 		UINT8* pVertexDataBegin;
-		ThrowIfFailed( m_vertexBuffer->Map( 0, nullptr, reinterpret_cast< void** >( &pVertexDataBegin ) ) );
+		VRET( m_vertexBuffer->Map( 0, nullptr, reinterpret_cast< void** >( &pVertexDataBegin ) ) );
 		memcpy( pVertexDataBegin, cubeVertices, sizeof( cubeVertices ) );
 		m_vertexBuffer->Unmap( 0, nullptr );
 
@@ -237,13 +239,13 @@ void RotatingCube::LoadAssets()
 		};
 
 		const UINT indexBufferSize = sizeof( cubeIndices );
-		ThrowIfFailed( m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),D3D12_HEAP_FLAG_NONE,
+		VRET( m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),D3D12_HEAP_FLAG_NONE,
 														  &CD3DX12_RESOURCE_DESC::Buffer( indexBufferSize ),D3D12_RESOURCE_STATE_GENERIC_READ,
 														  nullptr,IID_PPV_ARGS( &m_indexBuffer ) ) );
 		DXDebugName( m_indexBuffer );
 
 		UINT8* pIndexDataBegin;
-		ThrowIfFailed( m_indexBuffer->Map( 0, nullptr, reinterpret_cast< void** >( &pIndexDataBegin ) ) );
+		VRET( m_indexBuffer->Map( 0, nullptr, reinterpret_cast< void** >( &pIndexDataBegin ) ) );
 		memcpy( pIndexDataBegin, cubeIndices, sizeof( cubeIndices ) );
 		m_indexBuffer->Unmap( 0, nullptr );
 
@@ -254,13 +256,13 @@ void RotatingCube::LoadAssets()
 
 	// Create the constant buffer
 	{
-		ThrowIfFailed( m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),D3D12_HEAP_FLAG_NONE,
+		VRET( m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),D3D12_HEAP_FLAG_NONE,
 														  &CD3DX12_RESOURCE_DESC::Buffer( sizeof( XMFLOAT4X4 ) ),D3D12_RESOURCE_STATE_GENERIC_READ,
 														  nullptr,IID_PPV_ARGS( &m_constantBuffer ) ) );
 		DXDebugName( m_constantBuffer );
 
 		UINT8* pConstantBufferBegin;
-		ThrowIfFailed( m_constantBuffer->Map( 0, nullptr, reinterpret_cast< void** >( &pConstantBufferBegin ) ) );
+		VRET( m_constantBuffer->Map( 0, nullptr, reinterpret_cast< void** >( &pConstantBufferBegin ) ) );
 		XMFLOAT4X4 matrix;
 		XMStoreFloat4x4( &matrix, XMMatrixIdentity() );
 		memcpy( pConstantBufferBegin, &matrix, sizeof( matrix ) );
@@ -270,11 +272,11 @@ void RotatingCube::LoadAssets()
 
 	// Command lists are created in the recording state, but there is nothing
 	// to record yet. The main loop expects it to be closed, so close it now.
-	ThrowIfFailed( m_commandList->Close() );
+	VRET( m_commandList->Close() );
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
-		ThrowIfFailed( m_device->CreateFence( 0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS( &m_fence ) ) );
+		VRET( m_device->CreateFence( 0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS( &m_fence ) ) );
 		DXDebugName( m_fence );
 		m_fenceValue = 1;
 
@@ -282,7 +284,7 @@ void RotatingCube::LoadAssets()
 		m_fenceEvent = CreateEventEx( nullptr, FALSE, FALSE, EVENT_ALL_ACCESS );
 		if ( m_fenceEvent == nullptr )
 		{
-			ThrowIfFailed( HRESULT_FROM_WIN32( GetLastError() ) );
+			VRET( HRESULT_FROM_WIN32( GetLastError() ) );
 		}
 
 		// Wait for the command list to execute; we are reusing the same command 
@@ -290,16 +292,18 @@ void RotatingCube::LoadAssets()
 		// complete before continuing.
 		WaitForPreviousFrame();
 	}
+	return S_OK;
 }
 
 // Load size dependent resource
-void RotatingCube::LoadSizeDependentResource()
+HRESULT RotatingCube::LoadSizeDependentResource()
 {
+	HRESULT hr;
 	// Create render target views (RTVs).
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle( m_rtvHeap->GetCPUDescriptorHandleForHeapStart() );
 	for ( UINT i = 0; i < FrameCount; i++ )
 	{
-		ThrowIfFailed( m_swapChain->GetBuffer( i, IID_PPV_ARGS( &m_renderTargets[i] ) ) );
+		VRET( m_swapChain->GetBuffer( i, IID_PPV_ARGS( &m_renderTargets[i] ) ) );
 		DXDebugName( m_renderTargets[i] );
 		m_device->CreateRenderTargetView( m_renderTargets[i].Get(), nullptr, rtvHandle );
 		rtvHandle.Offset( 1, m_rtvDescriptorSize );
@@ -316,7 +320,7 @@ void RotatingCube::LoadSizeDependentResource()
 		clearValue.DepthStencil.Depth = 1.0f;
 		clearValue.DepthStencil.Stencil = 0;
 
-		ThrowIfFailed( m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_DEFAULT ),D3D12_HEAP_FLAG_NONE,&shadowTextureDesc,
+		VRET( m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_DEFAULT ),D3D12_HEAP_FLAG_NONE,&shadowTextureDesc,
 														  D3D12_RESOURCE_STATE_DEPTH_WRITE,&clearValue,IID_PPV_ARGS( &m_depthBuffer ) ) );
 		DXDebugName( m_depthBuffer );
 
@@ -334,6 +338,7 @@ void RotatingCube::LoadSizeDependentResource()
 	float fAspectRatio = m_width / ( FLOAT ) m_height;
 	m_camera.SetProjParams( XM_PI / 4, fAspectRatio, 0.01f, 1250.0f );
 	m_camera.SetWindow( m_width, m_height );
+	return S_OK;
 }
 
 // Update frame-based values.
@@ -349,6 +354,7 @@ void RotatingCube::OnUpdate()
 // Render the scene.
 void RotatingCube::OnRender()
 {
+	HRESULT hr;
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
 
@@ -357,13 +363,14 @@ void RotatingCube::OnRender()
 	m_commandQueue->ExecuteCommandLists( _countof( ppCommandLists ), ppCommandLists );
 
 	// Present the frame.
-	ThrowIfFailed( m_swapChain->Present( 1, 0 ) );
+	V( m_swapChain->Present( 1, 0 ) );
 
 	WaitForPreviousFrame();
 }
 
-void RotatingCube::OnSizeChanged()
+HRESULT RotatingCube::OnSizeChanged()
 {
+	HRESULT hr;
 	// Flush all current GPU commands.
 	WaitForPreviousFrame();
 
@@ -378,14 +385,15 @@ void RotatingCube::OnSizeChanged()
 	// Resize the swap chain to the desired dimensions.
 	DXGI_SWAP_CHAIN_DESC desc = {};
 	m_swapChain->GetDesc( &desc );
-	ThrowIfFailed( m_swapChain->ResizeBuffers( FrameCount, m_width, m_height, desc.BufferDesc.Format, desc.Flags ) );
+	VRET( m_swapChain->ResizeBuffers( FrameCount, m_width, m_height, desc.BufferDesc.Format, desc.Flags ) );
 
 	m_depthBuffer.Reset();
 
-	LoadSizeDependentResource();
+	VRET(LoadSizeDependentResource());
 
 	// Reset the frame index to the current back buffer index.
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+	return S_OK;
 }
 
 
@@ -405,15 +413,16 @@ bool RotatingCube::OnEvent( MSG msg )
 
 void RotatingCube::PopulateCommandList()
 {
+	HRESULT hr;
 	// Command list allocators can only be reset when the associated 
 	// command lists have finished execution on the GPU; apps should use 
 	// fences to determine GPU execution progress.
-	ThrowIfFailed( m_commandAllocator->Reset() );
+	V( m_commandAllocator->Reset() );
 
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
-	ThrowIfFailed( m_commandList->Reset( m_commandAllocator.Get(), m_pipelineState.Get() ) );
+	V( m_commandList->Reset( m_commandAllocator.Get(), m_pipelineState.Get() ) );
 
 	XMMATRIX view = m_camera.GetViewMatrix();
 	XMMATRIX proj = m_camera.GetProjMatrix();
@@ -421,7 +430,7 @@ void RotatingCube::PopulateCommandList()
 	XMMATRIX world = XMMatrixRotationY( static_cast< float >( m_timer.GetTotalSeconds() ) );
 	XMMATRIX wvp = XMMatrixMultiply( XMMatrixMultiply( world, view ), proj );
 	void* pCB;
-	ThrowIfFailed( m_constantBuffer->Map( 0, nullptr, &pCB ) );
+	V( m_constantBuffer->Map( 0, nullptr, &pCB ) );
 	if ( pCB ) {
 		XMStoreFloat4x4( ( XMFLOAT4X4* ) pCB, wvp );
 		m_constantBuffer->Unmap( 0, nullptr );
@@ -451,24 +460,25 @@ void RotatingCube::PopulateCommandList()
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT ) );
 
-	ThrowIfFailed( m_commandList->Close() );
+	V( m_commandList->Close() );
 }
 
 void RotatingCube::WaitForPreviousFrame()
 {
+	HRESULT hr;
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
 	// This is code implemented as such for simplicity. More advanced samples 
 	// illustrate how to use fences for efficient resource usage.
 
 	// Signal and increment the fence value.
 	const UINT64 fence = m_fenceValue;
-	ThrowIfFailed( m_commandQueue->Signal( m_fence.Get(), fence ) );
+	V( m_commandQueue->Signal( m_fence.Get(), fence ) );
 	m_fenceValue++;
 
 	// Wait until the previous frame is finished.
 	if ( m_fence->GetCompletedValue() < fence )
 	{
-		ThrowIfFailed( m_fence->SetEventOnCompletion( fence, m_fenceEvent ) );
+		V( m_fence->SetEventOnCompletion( fence, m_fenceEvent ) );
 		WaitForSingleObject( m_fenceEvent, INFINITE );
 	}
 
