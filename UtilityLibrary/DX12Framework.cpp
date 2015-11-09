@@ -8,7 +8,8 @@ using namespace Microsoft::WRL;
 CRITICAL_SECTION outputCS;
 
 DX12Framework::DX12Framework(UINT width, UINT height, std::wstring name):
-	_stopped(false),_error(false),m_width(width),m_height(height),m_useWarpDevice(false)
+	_stopped(false),_error(false),m_width(width),m_height(height),
+	m_newWidth(width),m_newHeight(height),m_useWarpDevice(false)
 {
 	// Initialize output critical section
 	InitializeCriticalSection( &outputCS );
@@ -37,11 +38,43 @@ void DX12Framework::RenderLoop()
 {
 	// Initialize the sample. OnInit is defined in each child-implementation of DXSample.
 	OnInit();
+
+	// Initialize performance counters
+	UINT64 perfCounterFreq = 0;
+	UINT64 lastPerfCount = 0;
+	QueryPerformanceFrequency( ( LARGE_INTEGER* ) &perfCounterFreq );
+	QueryPerformanceCounter( ( LARGE_INTEGER* ) &lastPerfCount );
+
+	// main loop
+	double elapsedTime = 0.0;
+	double frameTime = 0.0;
+
 	while ( !_stopped && !_error )
 	{
-		if ( _resize.load(memory_order_acquire) )
+		// Get time delta
+		UINT64 count;
+		QueryPerformanceCounter( ( LARGE_INTEGER* ) &count );
+		auto rawFrameTime = ( double ) ( count - lastPerfCount ) / perfCounterFreq;
+		elapsedTime += rawFrameTime;
+		lastPerfCount = count;
+
+		// Maintaining absolute time sync is not important in this demo so we can err on the "smoother" side
+		double alpha = 0.1f;
+		frameTime = alpha * rawFrameTime + ( 1.0f - alpha ) * frameTime;
+
+		// Update GUI
 		{
-			_resize.store(false,memory_order_release);
+			wchar_t buffer[256];
+			swprintf( buffer, 256, L"%ls - %4.1f ms  %.0f fps", m_title.c_str(), 1000.f * frameTime, 1.0f / frameTime );
+			SetWindowText( m_hwnd, buffer );
+		}
+
+		if ( _resize.load( memory_order_acquire ) )
+		{
+			_resize.store( false, memory_order_relaxed );
+			m_width = m_newWidth;
+			m_height = m_newHeight;
+			this->m_aspectRatio = static_cast< float >( m_width ) / static_cast< float >( m_height );
 			OnSizeChanged();
 		}
 		OnUpdate();
@@ -132,6 +165,8 @@ void DX12Framework::GetHardwareAdapter( IDXGIFactory4* pFactory, IDXGIAdapter1**
 		// actual device yet.
 		if ( SUCCEEDED( D3D12CreateDevice( adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof( ID3D12Device ), nullptr ) ) )
 		{
+			adapter->GetDesc1( &desc );
+			PRINTINFO( L"D3D12-capable hardware found:  %s (%u MB)", desc.Description, desc.DedicatedVideoMemory >> 20 );
 			break;
 		}
 	}
@@ -187,10 +222,9 @@ LRESULT CALLBACK DX12Framework::WindowProc(HWND hWnd, UINT message, WPARAM wPara
 			UINT _height = clientRect.bottom - clientRect.top;
 			if ( pSample->m_width != _width || pSample->m_height != _height )
 			{
-				pSample->m_width = _width;
-				pSample->m_height = _height;
-				pSample->m_aspectRatio = static_cast< float >( _width ) / static_cast< float >( _height );
-				pSample->_resize.store(true,memory_order_release);
+				pSample->m_newWidth = _width;
+				pSample->m_newHeight = _height;
+				pSample->_resize.store( true, memory_order_release );
 			}
 		}
 		return 0;

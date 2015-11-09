@@ -56,7 +56,9 @@ protected:
 	UINT m_width;
 	UINT m_height;
 	float m_aspectRatio;
-
+	
+	UINT m_newWidth;
+	UINT m_newHeight;
 	// Window handle.
 	HWND m_hwnd;
 

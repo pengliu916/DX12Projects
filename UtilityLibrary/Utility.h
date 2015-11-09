@@ -207,9 +207,7 @@ inline void PrintMsg( MessageType msgType, const char* szFormat, ... )
 //--------------------------------------------------------------------------------------
 // Profiling/instrumentation support
 //--------------------------------------------------------------------------------------
-#if defined(PROFILE) || defined(DEBUG)
 #define  DXDebugName(x)  DX_SetDebugName(x.Get(),L###x)
-#endif
 // Use DX_SetDebugName() to attach names to D3D objects for use by 
 // SDKDebugLayer, PIX's object table, etc.
 #if defined(PROFILE) || defined(DEBUG)

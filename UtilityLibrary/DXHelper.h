@@ -3,6 +3,8 @@
 #include <tchar.h>
 #include "Utility.h"
 
+#define CBUFFER_ALIGN __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
+
 #define __FILENAME__ (wcsrchr (_T(__FILE__), L'\\') ? wcsrchr (_T(__FILE__), L'\\') + 1 : _T(__FILE__))
 #if defined(DEBUG) || defined(_DEBUG)
 #ifndef V
@@ -66,7 +68,7 @@ inline HRESULT CompileShaderFromFile( LPCWSTR pFileName,const D3D_SHADER_MACRO* 
 	// Setting this flag improves the shader debugging experience, but still allows 
 	// the shaders to be optimized and to run exactly the way they will run in 
 	// the release configuration of this program.
-	Flags1 |= D3DCOMPILE_DEBUG;
+	Flags1 |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
 	ID3DBlob* pErrorBlob = nullptr;
