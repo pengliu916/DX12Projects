@@ -21,7 +21,7 @@ protected:
 	virtual bool OnEvent( MSG msg );
 
 private:
-	static const UINT FrameCount = 2;
+	static const UINT FrameCount = 3;
 
 	struct Vertex
 	{
@@ -40,7 +40,6 @@ private:
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-	ComPtr<ID3D12DescriptorHeap> m_cbHeap;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 	ComPtr<ID3D12GraphicsCommandList> m_commandList;
 	UINT m_rtvDescriptorSize;

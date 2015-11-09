@@ -155,8 +155,8 @@ HRESULT RotatingCube::LoadAssets()
 		UINT compileFlags = 0;
 #endif
 
-		VRET( CompileShaderFromFile( GetAssetFullPath( _T("shaders.hlsl" )).c_str(), nullptr, nullptr, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader ) );
-		VRET( CompileShaderFromFile( GetAssetFullPath( _T("shaders.hlsl") ).c_str(), nullptr, nullptr, "psmain", "ps_5_0", compileFlags, 0, &pixelShader ) );
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T("RotatingCube_shader.hlsl" )).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader ) );
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T("RotatingCube_shader.hlsl") ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain", "ps_5_0", compileFlags, 0, &pixelShader ) );
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
 		{
@@ -363,7 +363,7 @@ void RotatingCube::OnRender()
 	m_commandQueue->ExecuteCommandLists( _countof( ppCommandLists ), ppCommandLists );
 
 	// Present the frame.
-	V( m_swapChain->Present( 1, 0 ) );
+	V( m_swapChain->Present( 0, 0 ) );
 
 	WaitForPreviousFrame();
 }
