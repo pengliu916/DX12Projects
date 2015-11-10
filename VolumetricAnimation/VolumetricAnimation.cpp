@@ -8,6 +8,16 @@ VolumetricAnimation::VolumetricAnimation( UINT width, UINT height, std::wstring 
 	m_volumeWidth = 256;
 	m_volumeHeight = 256;
 	m_volumeDepth = 256;
+
+	ZeroMemory( &m_constantBufferData, sizeof( m_constantBufferData ) );
+
+	m_constantBufferData.colVal[0] = XMINT4( 1, 0, 0, 0 );
+	m_constantBufferData.colVal[1] = XMINT4( 0, 1, 0, 1 );
+	m_constantBufferData.colVal[2] = XMINT4( 0, 0, 1, 2 );
+	m_constantBufferData.colVal[3] = XMINT4( 1, 1, 0, 3 );
+	m_constantBufferData.colVal[4] = XMINT4( 1, 0, 1, 4 );
+	m_constantBufferData.colVal[5] = XMINT4( 0, 1, 1, 5 );
+	m_constantBufferData.bgCol = XMINT4( 64, 64, 64, 64 );
 }
 
 HRESULT VolumetricAnimation::OnInit()
@@ -87,7 +97,7 @@ HRESULT VolumetricAnimation::LoadPipeline()
 	swapChainDesc.BufferCount = FrameCount;
 	swapChainDesc.BufferDesc.Width = m_width;
 	swapChainDesc.BufferDesc.Height = m_height;
-	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.OutputWindow = m_hwnd;
@@ -214,9 +224,9 @@ HRESULT VolumetricAnimation::LoadAssets()
 
 		UINT compileFlags = 0;
 
-		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "shaders.hlsl" ) ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader ) );
-		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "shaders.hlsl" ) ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain", "ps_5_0", compileFlags, 0, &pixelShader ) );
-		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "shaders.hlsl" ) ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "csmain", "cs_5_0", compileFlags, 0, &computeShader ) );
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "VolumetricAnimation_shader.hlsl" ) ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader ) );
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "VolumetricAnimation_shader.hlsl" ) ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain", "ps_5_0", compileFlags, 0, &pixelShader ) );
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "VolumetricAnimation_shader.hlsl" ) ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "csmain", "cs_5_0", compileFlags, 0, &computeShader ) );
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
 		{
@@ -292,7 +302,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the Texture2D.
 		UINT8* volumeBuffer = ( UINT8* ) malloc( volumeBufferSize );
-		//memset( volumeBuffer, 0, volumeBufferSize );
+		memset( volumeBuffer, 64, volumeBufferSize );
 		//float radius = m_volumeHeight / 2.f;
 		float a = m_volumeWidth / 2.f;
 		float b = m_volumeHeight / 2.f;
@@ -306,20 +316,24 @@ HRESULT VolumetricAnimation::LoadAssets()
 					float _x = x - m_volumeWidth / 2.f;
 					float _y = y - m_volumeHeight / 2.f;
 					float _z = z - m_volumeDepth / 2.f;
-					float currentRaidus = sqrt( _x*_x + _y*_y + _z*_z );
-					float scale = currentRaidus *3.f / radius;
-					UINT interm = ( UINT ) ( 192 * scale );
-					UINT8 col = interm % 192 + 64;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 0] = col;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 1] = col;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 2] = col;
+					float currentRaidus =0.5*(abs(_x)+abs(_y)+abs(_z));
+					//float currentRaidus = sqrt( _x*_x + _y*_y + _z*_z );
+					float scale = currentRaidus *4.f / radius;
+					UINT idx = 5 - (UINT)floor( scale );
+					UINT interm = ( UINT ) ( 192 * scale +0.5f );
+					UINT8 col = interm % 192+1;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 0] += col * m_constantBufferData.colVal[idx].x;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 1] += col * m_constantBufferData.colVal[idx].y;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 2] += col * m_constantBufferData.colVal[idx].z;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 3] = m_constantBufferData.colVal[idx].w;
 				}
 		D3D12_SUBRESOURCE_DATA volumeBufferData = {};
 		volumeBufferData.pData = &volumeBuffer[0];
 		volumeBufferData.RowPitch = volumeBufferSize;
 		volumeBufferData.SlicePitch = volumeBufferData.RowPitch;
 
-		UpdateSubresources( m_graphicCmdList.Get(), m_volumeBuffer.Get(), volumeBufferUploadHeap.Get(), 0, 0, 1, &volumeBufferData );
+		UpdateSubresources<1>( m_graphicCmdList.Get(), m_volumeBuffer.Get(), volumeBufferUploadHeap.Get(), 0, 0, 1, &volumeBufferData );
+		free( volumeBuffer );
 		m_graphicCmdList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_volumeBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS ) );
 
 		// Describe and create a SRV for the volumeBuffer.
@@ -347,7 +361,6 @@ HRESULT VolumetricAnimation::LoadAssets()
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE uavHandle( m_cbvsrvuavHeap->GetCPUDescriptorHandleForHeapStart(), RootParameterUAV, m_cbvsrvuavDescriptorSize );
 		m_device->CreateUnorderedAccessView( m_volumeBuffer.Get(), nullptr, &uavDesc, uavHandle );
-		free( volumeBuffer );
 	}
 
 	// Create the vertex buffer.
@@ -448,8 +461,6 @@ HRESULT VolumetricAnimation::LoadAssets()
 
 		// Initialize and map the constant buffers. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
-		ZeroMemory( &m_constantBufferData, sizeof( m_constantBufferData ) );
-
 		CD3DX12_RANGE readRange( 0, 0 );		// We do not intend to read from this resource on the CPU.
 		VRET( m_constantBuffer->Map( 0, &readRange, reinterpret_cast< void** >( &m_pCbvDataBegin ) ) );
 		memcpy( m_pCbvDataBegin, &m_constantBufferData, sizeof( m_constantBufferData ) );
@@ -635,7 +646,7 @@ void VolumetricAnimation::PopulateGraphicsCommandList()
 	m_constantBufferData.wvp = XMMatrixMultiply( view, proj );
 	//m_constantBufferData.wvp = XMMatrixMultiply( XMMatrixMultiply( world, view ), proj );
 	XMStoreFloat4( &m_constantBufferData.viewPos, m_camera.GetEyePt() );
-	m_constantBufferData.changeSpeed = XMINT4( 15, 5, 10, 0 );
+	
 	memcpy( m_pCbvDataBegin, &m_constantBufferData, sizeof( m_constantBufferData ) );
 
 	// Set necessary state.

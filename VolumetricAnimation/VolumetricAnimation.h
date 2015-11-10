@@ -33,7 +33,8 @@ private:
 	{
 		XMMATRIX wvp;
 		XMFLOAT4 viewPos;
-		XMINT4 changeSpeed;
+		XMINT4 colVal[6];
+		XMINT4 bgCol;
 	};
 
 	// Pipeline objects.

@@ -34,7 +34,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="shaders.hlsl" />
+    <CustomBuild Include="VolumetricAnimation_shader.hlsl" />
     <CustomBuild Include="D3DX_DXGIFormatConvert.inl" />
   </ItemGroup>
 </Project>

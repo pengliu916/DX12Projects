@@ -7,9 +7,24 @@ cbuffer cbChangesEveryFrame : register( b0 )
 {
 	float4x4 worldViewProj;
 	float4 viewPos;
-	int3 changeSpeed;
-	int niu;
+
+	// comment out the following two line and uncomment the next static uint4 colVal[6] block
+	// will increase the frametime from 5.5ms to 21ms!!
+	uint4 colVal[6];
+	uint4 bgCol;
 };
+
+// Comment out the uint4 colVal1[6]; uint4 bgCol1; two lines and uncomment this block will
+// increase the frametime from 5.5ms to 21ms!!
+//static uint4 colVal[6] = {
+//	uint4( 1, 0, 0, 0 ),
+//	uint4( 0, 1, 0, 1 ),
+//	uint4( 0, 0, 1, 2 ),
+//	uint4( 1, 1, 0, 3 ),
+//	uint4( 1, 0, 1, 4 ),
+//	uint4( 0, 1, 1, 5 )
+//};
+//static uint4 bgCol = uint4( 64, 64, 64, 64 );
 
 // TSDF related variable
 static const float3 voxelResolution = float3( 256, 256, 256 );// float3( VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE );
@@ -17,7 +32,7 @@ static const float3 boxMin = float3( -1.0, -1.0, -1.0 )*voxelResolution / 2.0f;
 static const float3 boxMax = float3( 1.0, 1.0, 1.0 )*voxelResolution / 2.0f;
 static const float3 reversedWidthHeightDepth = 1.0f / ( voxelResolution );
 
-static const float density = 0.01;
+static const float density = 0.02;
 
 //--------------------------------------------------------------------------------------
 // Structures
@@ -112,15 +127,19 @@ float4 psmain( VSOutput input ) : SV_TARGET
 	return output;
 }
 
+//--------------------------------------------------------------------------------------
+// Compute Shader
+//--------------------------------------------------------------------------------------
 [numthreads( 8, 8, 8 )]
 void csmain( uint3 DTid: SV_DispatchThreadID, uint Tid : SV_GroupIndex )
 {
-	float3 Coord = DTid - voxelResolution*0.5;
-
 	uint4 col = D3DX_R8G8B8A8_UINT_to_UINT4( g_bufVolumeUAV[DTid.x + DTid.y*voxelResolution.x + DTid.z*voxelResolution.x*voxelResolution.y] );
-	col.xyz = col.xyz - uint3(1,1,1 );
-	if ( col.x <= 64  ) col.xyz = 255;
-	//col.xyz = ( col.xyz + changeSpeed*( abs( Coord / voxelResolution ) + 0.2 ) ) % 256;
+	col.xyz -= colVal[col.w].xyz;
+	if ( !any( col.xyz - bgCol.xyz ) )
+	{
+		col.w = ( col.w + 1 ) % 6;
+		col.xyz = 255 * colVal[col.w].xyz + bgCol.xyz; // Let it overflow, it doesn't matter
+	}
 	g_bufVolumeUAV[DTid.x + DTid.y*voxelResolution.x + DTid.z*voxelResolution.x*voxelResolution.y] = D3DX_UINT4_to_R8G8B8A8_UINT( col );
 }
 
