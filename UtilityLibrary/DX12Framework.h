@@ -59,8 +59,12 @@ protected:
 	
 	UINT m_newWidth;
 	UINT m_newHeight;
+
 	// Window handle.
 	HWND m_hwnd;
+
+	// DX init finish event handle
+	HANDLE m_dxReady;
 
 	// Adapter info.
 	bool m_useWarpDevice;

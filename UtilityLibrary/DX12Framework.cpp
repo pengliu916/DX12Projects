@@ -1,6 +1,7 @@
 #include "LibraryHeader.h"
 #include "DX12Framework.h"
 #include "Utility.h"
+#include "DXHelper.h"
 #include <shellapi.h>
 
 using namespace Microsoft::WRL;
@@ -38,6 +39,9 @@ void DX12Framework::RenderLoop()
 {
 	// Initialize the sample. OnInit is defined in each child-implementation of DXSample.
 	OnInit();
+
+	// Tell UI thread DX is ready, so it can show the window
+	SetEvent( m_dxReady );
 
 	// Initialize performance counters
 	UINT64 perfCounterFreq = 0;
@@ -113,10 +117,23 @@ int DX12Framework::Run(HINSTANCE hInstance, int nCmdShow)
 		hInstance,
 		this);		// We aren't using multiple windows, NULL.
 
-	ShowWindow(m_hwnd, nCmdShow);
+
+	// Create an event handle to use for frame synchronization.
+	m_dxReady = CreateEvent( nullptr, FALSE, FALSE, nullptr );
+	if ( m_dxReady == nullptr )
+	{
+		HRESULT hr;
+		VRET( HRESULT_FROM_WIN32( GetLastError() ) );
+	}
+
 
 	std::thread renderThread( &DX12Framework::RenderLoop, this );
 	thread_guard g( renderThread );
+
+	// Wait for DX init to finish, so window will show up with meaningful content
+	WaitForSingleObject( m_dxReady, INFINITE );
+	ShowWindow(m_hwnd, nCmdShow);
+
 	// Main sample loop.
 	MSG msg = { 0 };
 	while ( msg.message != WM_QUIT )
