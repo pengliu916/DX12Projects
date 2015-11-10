@@ -76,6 +76,7 @@ void DX12Framework::RenderLoop()
 			m_height = m_newHeight;
 			this->m_aspectRatio = static_cast< float >( m_width ) / static_cast< float >( m_height );
 			OnSizeChanged();
+			PRINTINFO( "Window resize to %d x %d", m_width, m_height );
 		}
 		OnUpdate();
 		OnRender();
@@ -214,7 +215,7 @@ LRESULT CALLBACK DX12Framework::WindowProc(HWND hWnd, UINT message, WPARAM wPara
 		return 0;
 
 	case WM_SIZE:
-		if( pSample )
+		if(  wParam!= SIZE_MINIMIZED && pSample )
 		{
 			RECT clientRect = {};
 			GetClientRect( hWnd, &clientRect );
