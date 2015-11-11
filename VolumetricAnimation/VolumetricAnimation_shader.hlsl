@@ -1,35 +1,15 @@
-#include"D3DX_DXGIFormatConvert.inl"// this file provide utility funcs for format conversion
+#include "D3DX_DXGIFormatConvert.inl"// this file provide utility funcs for format conversion
+#include "VolumetricAnimation_SharedHeader.inl"
+
 SamplerState samRaycast : register( s0 );
 StructuredBuffer<uint> g_bufVolumeSRV : register( t0 );
 RWStructuredBuffer<uint> g_bufVolumeUAV : register( u0 );
 
-cbuffer cbChangesEveryFrame : register( b0 )
-{
-	float4x4 worldViewProj;
-	float4 viewPos;
-
-	// comment out the following two line and uncomment the next static uint4 colVal[6] block
-	// will increase the frametime from 5.5ms to 21ms!!
-	uint4 colVal[6];
-	uint4 bgCol;
-};
-
-// Comment out the uint4 colVal1[6]; uint4 bgCol1; two lines and uncomment this block will
-// increase the frametime from 5.5ms to 21ms!!
-//static uint4 colVal[6] = {
-//	uint4( 1, 0, 0, 0 ),
-//	uint4( 0, 1, 0, 1 ),
-//	uint4( 0, 0, 1, 2 ),
-//	uint4( 1, 1, 0, 3 ),
-//	uint4( 1, 0, 1, 4 ),
-//	uint4( 0, 1, 1, 5 )
-//};
-//static uint4 bgCol = uint4( 64, 64, 64, 64 );
 
 // TSDF related variable
-static const float3 voxelResolution = float3( 256, 256, 256 );// float3( VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE );
-static const float3 boxMin = float3( -1.0, -1.0, -1.0 )*voxelResolution / 2.0f;
-static const float3 boxMax = float3( 1.0, 1.0, 1.0 )*voxelResolution / 2.0f;
+static const float3 voxelResolution = float3( VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z );// float3( VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE );
+static const float3 boxMin = VOLUME_SIZE_SCALE * float3( -1.0, -1.0, -1.0 )*voxelResolution / 2.0f;
+static const float3 boxMax = VOLUME_SIZE_SCALE * float3( 1.0, 1.0, 1.0 )*voxelResolution / 2.0f;
 static const float3 reversedWidthHeightDepth = 1.0f / ( voxelResolution );
 
 static const float density = 0.02;
@@ -77,7 +57,7 @@ bool IntersectBox( Ray r, float3 boxmin, float3 boxmax, out float tnear, out flo
 VSOutput vsmain( float4 pos : POSITION )
 {
 	VSOutput vsout = ( VSOutput ) 0;
-	vsout.ProjPos = mul( worldViewProj, pos );
+	vsout.ProjPos = mul( wvp, pos );
 	vsout.Pos = pos;
 	return vsout;
 }
@@ -91,7 +71,7 @@ float4 psmain( VSOutput input ) : SV_TARGET
 
 	Ray eyeray;
 	//world space
-	eyeray.o = viewPos;
+	eyeray.o = mul(invWorld, viewPos);
 	eyeray.d = input.Pos - eyeray.o;
 	eyeray.d = normalize( eyeray.d );
 	eyeray.d.x = ( eyeray.d.x == 0.f ) ? 1e-15 : eyeray.d.x;
@@ -109,14 +89,14 @@ float4 psmain( VSOutput input ) : SV_TARGET
 
 	float3 P = Pnear;
 	float t = tnear;
-	float tSmallStep = 5;
+	float tSmallStep = VOLUME_SIZE_SCALE * 5;
 	float3 P_pre = Pnear;
 	float3 PsmallStep = eyeray.d.xyz * tSmallStep;
 
 	float3 currentPixPos;
 
 	while ( t <= tfar ) {
-		int3 idx = P + voxelResolution * 0.5;
+		int3 idx = P/ VOLUME_SIZE_SCALE + voxelResolution * 0.5;
 		float4 value = D3DX_R8G8B8A8_UINT_to_UINT4( g_bufVolumeSRV[idx.x + idx.y*voxelResolution.x + idx.z*voxelResolution.y * voxelResolution.x] ) / 256.f;
 
 		output += value * density;
@@ -127,18 +107,19 @@ float4 psmain( VSOutput input ) : SV_TARGET
 	return output;
 }
 
+
 //--------------------------------------------------------------------------------------
 // Compute Shader
 //--------------------------------------------------------------------------------------
-[numthreads( 8, 8, 8 )]
+[numthreads( THREAD_X, THREAD_Y, THREAD_Z )]
 void csmain( uint3 DTid: SV_DispatchThreadID, uint Tid : SV_GroupIndex )
 {
 	uint4 col = D3DX_R8G8B8A8_UINT_to_UINT4( g_bufVolumeUAV[DTid.x + DTid.y*voxelResolution.x + DTid.z*voxelResolution.x*voxelResolution.y] );
-	col.xyz -= colVal[col.w].xyz;
+	col.xyz -= shiftingColVals[col.w].xyz;
 	if ( !any( col.xyz - bgCol.xyz ) )
 	{
-		col.w = ( col.w + 1 ) % 6;
-		col.xyz = 255 * colVal[col.w].xyz + bgCol.xyz; // Let it overflow, it doesn't matter
+		col.w = ( col.w + 1 ) % COLOR_COUNT;
+		col.xyz = 255 * shiftingColVals[col.w].xyz + bgCol.xyz; // Let it overflow, it doesn't matter
 	}
 	g_bufVolumeUAV[DTid.x + DTid.y*voxelResolution.x + DTid.z*voxelResolution.x*voxelResolution.y] = D3DX_UINT4_to_R8G8B8A8_UINT( col );
 }

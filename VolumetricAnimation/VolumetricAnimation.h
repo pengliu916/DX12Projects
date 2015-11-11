@@ -7,11 +7,11 @@
 using namespace DirectX;
 using namespace Microsoft::WRL;
 
-#define CBUFFER_ALIGN __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
 class VolumetricAnimation : public DX12Framework
 {
 public:
 	VolumetricAnimation( UINT width, UINT height, std::wstring name );
+	~VolumetricAnimation();
 
 protected:
 	virtual HRESULT OnInit();
@@ -27,14 +27,6 @@ private:
 	struct Vertex
 	{
 		XMFLOAT3 position;
-	};
-
-	CBUFFER_ALIGN struct ConstantBuffer
-	{
-		XMMATRIX wvp;
-		XMFLOAT4 viewPos;
-		XMINT4 colVal[6];
-		XMINT4 bgCol;
 	};
 
 	// Pipeline objects.
@@ -72,7 +64,7 @@ private:
 
 	CModelViewerCamera m_camera;
 	StepTimer m_timer;
-	ConstantBuffer m_constantBufferData;
+	struct ConstantBuffer* m_pConstantBufferData;
 	UINT8* m_pCbvDataBegin;
 
 	// Synchronization objects.

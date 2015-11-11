@@ -2,22 +2,28 @@
 #include "stdafx.h"
 #include "VolumetricAnimation.h"
 
+
+#include "VolumetricAnimation_SharedHeader.inl"
+
 VolumetricAnimation::VolumetricAnimation( UINT width, UINT height, std::wstring name ) :
 	DX12Framework( width, height, name ), m_frameIndex( 0 ), m_viewport(), m_scissorRect(), m_rtvDescriptorSize( 0 )
 {
-	m_volumeWidth = 256;
-	m_volumeHeight = 256;
-	m_volumeDepth = 256;
+	m_volumeWidth = VOLUME_SIZE_X;
+	m_volumeHeight = VOLUME_SIZE_Y;
+	m_volumeDepth = VOLUME_SIZE_Z;
 
-	ZeroMemory( &m_constantBufferData, sizeof( m_constantBufferData ) );
+	m_pConstantBufferData = new ConstantBuffer();
+	m_pConstantBufferData->bgCol = XMINT4( 64, 64, 64, 64 );
 
-	m_constantBufferData.colVal[0] = XMINT4( 1, 0, 0, 0 );
-	m_constantBufferData.colVal[1] = XMINT4( 0, 1, 0, 1 );
-	m_constantBufferData.colVal[2] = XMINT4( 0, 0, 1, 2 );
-	m_constantBufferData.colVal[3] = XMINT4( 1, 1, 0, 3 );
-	m_constantBufferData.colVal[4] = XMINT4( 1, 0, 1, 4 );
-	m_constantBufferData.colVal[5] = XMINT4( 0, 1, 1, 5 );
-	m_constantBufferData.bgCol = XMINT4( 64, 64, 64, 64 );
+#if !STATIC_ARRAY
+	for ( UINT i = 0; i < COLOR_COUNT;i++ )
+		m_pConstantBufferData->shiftingColVals[i] = shiftingColVals[i];
+#endif
+}
+
+VolumetricAnimation::~VolumetricAnimation()
+{
+	free( m_pConstantBufferData );
 }
 
 HRESULT VolumetricAnimation::OnInit()
@@ -223,10 +229,14 @@ HRESULT VolumetricAnimation::LoadAssets()
 		ComPtr<ID3DBlob> computeShader;
 
 		UINT compileFlags = 0;
-
-		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "VolumetricAnimation_shader.hlsl" ) ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader ) );
-		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "VolumetricAnimation_shader.hlsl" ) ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain", "ps_5_0", compileFlags, 0, &pixelShader ) );
-		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "VolumetricAnimation_shader.hlsl" ) ).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "csmain", "cs_5_0", compileFlags, 0, &computeShader ) );
+		D3D_SHADER_MACRO macro[] = 
+		{ 
+			{"__hlsl",			"1"}, 
+			{nullptr,		nullptr} 
+		};
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "VolumetricAnimation_shader.hlsl" ) ).c_str(), macro, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_0", compileFlags, 0, &vertexShader ) );
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "VolumetricAnimation_shader.hlsl" ) ).c_str(), macro, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain", "ps_5_0", compileFlags, 0, &pixelShader ) );
+		VRET( CompileShaderFromFile( GetAssetFullPath( _T( "VolumetricAnimation_shader.hlsl" ) ).c_str(), macro, D3D_COMPILE_STANDARD_FILE_INCLUDE, "csmain", "cs_5_0", compileFlags, 0, &computeShader ) );
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
 		{
@@ -316,16 +326,19 @@ HRESULT VolumetricAnimation::LoadAssets()
 					float _x = x - m_volumeWidth / 2.f;
 					float _y = y - m_volumeHeight / 2.f;
 					float _z = z - m_volumeDepth / 2.f;
+#if SPHERE_VOLUME_ANIMATION
+					float currentRaidus = sqrt( _x*_x + _y*_y + _z*_z );
+#else
 					float currentRaidus =0.5*(abs(_x)+abs(_y)+abs(_z));
-					//float currentRaidus = sqrt( _x*_x + _y*_y + _z*_z );
+#endif
 					float scale = currentRaidus *4.f / radius;
 					UINT idx = 5 - (UINT)floor( scale );
 					UINT interm = ( UINT ) ( 192 * scale +0.5f );
 					UINT8 col = interm % 192+1;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 0] += col * m_constantBufferData.colVal[idx].x;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 1] += col * m_constantBufferData.colVal[idx].y;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 2] += col * m_constantBufferData.colVal[idx].z;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 3] = m_constantBufferData.colVal[idx].w;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 0] += col * shiftingColVals[idx].x;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 1] += col * shiftingColVals[idx].y;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 2] += col * shiftingColVals[idx].z;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 3] = shiftingColVals[idx].w;
 				}
 		D3D12_SUBRESOURCE_DATA volumeBufferData = {};
 		volumeBufferData.pData = &volumeBuffer[0];
@@ -374,14 +387,14 @@ HRESULT VolumetricAnimation::LoadAssets()
 		// Define the geometry for a triangle.
 		Vertex cubeVertices[] =
 		{
-			{ XMFLOAT3( -128.f, -128.f, -128.f ) },
-			{ XMFLOAT3( -128.f, -128.f,  128.f ) },
-			{ XMFLOAT3( -128.f,  128.f, -128.f ) },
-			{ XMFLOAT3( -128.f,  128.f,  128.f ) },
-			{ XMFLOAT3( 128.f, -128.f, -128.f )},
-			{ XMFLOAT3( 128.f, -128.f,  128.f )},
-			{ XMFLOAT3( 128.f,  128.f, -128.f )},
-			{ XMFLOAT3( 128.f,  128.f,  128.f )},
+			{ XMFLOAT3( -1 * VOLUME_SIZE_X * 0.5f * VOLUME_SIZE_SCALE, -1 * VOLUME_SIZE_Y * 0.5f * VOLUME_SIZE_SCALE, -1 * VOLUME_SIZE_Z * 0.5f * VOLUME_SIZE_SCALE ) },
+			{ XMFLOAT3( -1 * VOLUME_SIZE_X * 0.5f * VOLUME_SIZE_SCALE, -1 * VOLUME_SIZE_Y * 0.5f * VOLUME_SIZE_SCALE,  1 * VOLUME_SIZE_Z * 0.5f * VOLUME_SIZE_SCALE ) },
+			{ XMFLOAT3( -1 * VOLUME_SIZE_X * 0.5f * VOLUME_SIZE_SCALE,  1 * VOLUME_SIZE_Y * 0.5f * VOLUME_SIZE_SCALE, -1 * VOLUME_SIZE_Z * 0.5f * VOLUME_SIZE_SCALE ) },
+			{ XMFLOAT3( -1 * VOLUME_SIZE_X * 0.5f * VOLUME_SIZE_SCALE,  1 * VOLUME_SIZE_Y * 0.5f * VOLUME_SIZE_SCALE,  1 * VOLUME_SIZE_Z * 0.5f * VOLUME_SIZE_SCALE ) },
+			{ XMFLOAT3( 1 * VOLUME_SIZE_X * 0.5f * VOLUME_SIZE_SCALE, -1 * VOLUME_SIZE_Y * 0.5f * VOLUME_SIZE_SCALE, -1 * VOLUME_SIZE_Z * 0.5f * VOLUME_SIZE_SCALE )},
+			{ XMFLOAT3( 1 * VOLUME_SIZE_X * 0.5f * VOLUME_SIZE_SCALE, -1 * VOLUME_SIZE_Y * 0.5f * VOLUME_SIZE_SCALE,  1 * VOLUME_SIZE_Z * 0.5f * VOLUME_SIZE_SCALE )},
+			{ XMFLOAT3( 1 * VOLUME_SIZE_X * 0.5f * VOLUME_SIZE_SCALE,  1 * VOLUME_SIZE_Y * 0.5f * VOLUME_SIZE_SCALE, -1 * VOLUME_SIZE_Z * 0.5f * VOLUME_SIZE_SCALE )},
+			{ XMFLOAT3( 1 * VOLUME_SIZE_X * 0.5f * VOLUME_SIZE_SCALE,  1 * VOLUME_SIZE_Y * 0.5f * VOLUME_SIZE_SCALE,  1 * VOLUME_SIZE_Z * 0.5f * VOLUME_SIZE_SCALE )},
 		};
 
 		const UINT vertexBufferSize = sizeof( cubeVertices );
@@ -463,7 +476,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
 		CD3DX12_RANGE readRange( 0, 0 );		// We do not intend to read from this resource on the CPU.
 		VRET( m_constantBuffer->Map( 0, &readRange, reinterpret_cast< void** >( &m_pCbvDataBegin ) ) );
-		memcpy( m_pCbvDataBegin, &m_constantBufferData, sizeof( m_constantBufferData ) );
+		memcpy( m_pCbvDataBegin, &m_pConstantBufferData, sizeof( m_pConstantBufferData ) );
 	}
 
 	// Close the command list and execute it to begin the initial GPU setup.
@@ -491,10 +504,11 @@ HRESULT VolumetricAnimation::LoadAssets()
 	}
 
 
-	XMVECTORF32 vecEye = { 500.0f, 500.0f, -500.0f };
+	XMVECTORF32 vecEye = { 5.0f, 5.0f, -5.0f };
 	XMVECTORF32 vecAt = { 0.0f, 0.0f, 0.0f };
 	m_camera.SetViewParams( vecEye, vecAt );
 	m_camera.SetEnablePositionMovement( true );
+
 	m_camera.SetButtonMasks( MOUSE_RIGHT_BUTTON, MOUSE_WHEEL, MOUSE_LEFT_BUTTON );
 
 	return S_OK;
@@ -541,7 +555,7 @@ HRESULT VolumetricAnimation::LoadSizeDependentResource()
 	m_scissorRect.bottom = static_cast< LONG >( m_height );
 
 	float fAspectRatio = m_width / ( FLOAT ) m_height;
-	m_camera.SetProjParams( XM_PI / 4, fAspectRatio, 0.01f, 1250.0f );
+	m_camera.SetProjParams( XM_PI / 4, fAspectRatio, 0.1f, 12500.0f );
 	m_camera.SetWindow( m_width, m_height );
 	return S_OK;
 }
@@ -642,12 +656,12 @@ void VolumetricAnimation::PopulateGraphicsCommandList()
 	XMMATRIX view = m_camera.GetViewMatrix();
 	XMMATRIX proj = m_camera.GetProjMatrix();
 
-	XMMATRIX world = XMMatrixRotationY( static_cast< float >( m_timer.GetTotalSeconds() ) );
-	m_constantBufferData.wvp = XMMatrixMultiply( view, proj );
-	//m_constantBufferData.wvp = XMMatrixMultiply( XMMatrixMultiply( world, view ), proj );
-	XMStoreFloat4( &m_constantBufferData.viewPos, m_camera.GetEyePt() );
+	XMMATRIX world = XMMatrixIdentity();
+	m_pConstantBufferData->invWorld = XMMatrixInverse( nullptr, world );
+	m_pConstantBufferData->wvp = XMMatrixMultiply( XMMatrixMultiply( world, view ), proj );
+	XMStoreFloat4( &m_pConstantBufferData->viewPos, m_camera.GetEyePt() );
 	
-	memcpy( m_pCbvDataBegin, &m_constantBufferData, sizeof( m_constantBufferData ) );
+	memcpy( m_pCbvDataBegin, m_pConstantBufferData, sizeof( ConstantBuffer ) );
 
 	// Set necessary state.
 	m_graphicCmdList->SetGraphicsRootSignature( m_graphicsRootSignature.Get() );
