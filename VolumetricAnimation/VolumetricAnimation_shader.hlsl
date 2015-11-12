@@ -7,7 +7,7 @@ RWStructuredBuffer<uint> g_bufVolumeUAV : register( u0 );
 
 
 // TSDF related variable
-static const float3 voxelResolution = float3( VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z );// float3( VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE );
+static const uint3 voxelResolution = uint3( VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z );// float3( VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE );
 static const float3 boxMin = VOLUME_SIZE_SCALE * float3( -1.0, -1.0, -1.0 )*voxelResolution / 2.0f;
 static const float3 boxMax = VOLUME_SIZE_SCALE * float3( 1.0, 1.0, 1.0 )*voxelResolution / 2.0f;
 static const float3 reversedWidthHeightDepth = 1.0f / ( voxelResolution );
@@ -77,12 +77,12 @@ float4 psmain( VSOutput input ) : SV_TARGET
 	eyeray.d.x = ( eyeray.d.x == 0.f ) ? 1e-15 : eyeray.d.x;
 	eyeray.d.y = ( eyeray.d.y == 0.f ) ? 1e-15 : eyeray.d.y;
 	eyeray.d.z = ( eyeray.d.z == 0.f ) ? 1e-15 : eyeray.d.z;
-
+	
 	// calculate ray intersection with bounding box
 	float tnear, tfar;
 	bool hit = IntersectBox( eyeray, boxMin, boxMax , tnear, tfar );
 	if ( !hit ) return output;
-
+	
 	// calculate intersection points
 	float3 Pnear = eyeray.o.xyz + eyeray.d.xyz * tnear;
 	float3 Pfar = eyeray.o.xyz + eyeray.d.xyz * tfar;
@@ -97,7 +97,7 @@ float4 psmain( VSOutput input ) : SV_TARGET
 
 	while ( t <= tfar ) {
 		int3 idx = P/ VOLUME_SIZE_SCALE + voxelResolution * 0.5;
-		float4 value = D3DX_R8G8B8A8_UINT_to_UINT4( g_bufVolumeSRV[idx.x + idx.y*voxelResolution.x + idx.z*voxelResolution.y * voxelResolution.x] ) / 256.f;
+		float4 value = D3DX_R8G8B8A8_UINT_to_UINT4( g_bufVolumeSRV[idx.x + idx.y*voxelResolution.x + idx.z*voxelResolution.y * voxelResolution.x] ) / 255.f;
 
 		output += value * density;
 
@@ -116,10 +116,12 @@ void csmain( uint3 DTid: SV_DispatchThreadID, uint Tid : SV_GroupIndex )
 {
 	uint4 col = D3DX_R8G8B8A8_UINT_to_UINT4( g_bufVolumeUAV[DTid.x + DTid.y*voxelResolution.x + DTid.z*voxelResolution.x*voxelResolution.y] );
 	col.xyz -= shiftingColVals[col.w].xyz;
-	if ( !any( col.xyz - bgCol.xyz ) )
+
+	uint3 delta = col.xyz - bgCol.xyz;
+	if ( dot(delta,delta)<0.8 )
 	{
 		col.w = ( col.w + 1 ) % COLOR_COUNT;
-		col.xyz = 255 * shiftingColVals[col.w].xyz + bgCol.xyz; // Let it overflow, it doesn't matter
+		col.xyz = (255-bgCol.w) * shiftingColVals[col.w].xyz + bgCol.xyz; 
 	}
 	g_bufVolumeUAV[DTid.x + DTid.y*voxelResolution.x + DTid.z*voxelResolution.x*voxelResolution.y] = D3DX_UINT4_to_R8G8B8A8_UINT( col );
 }

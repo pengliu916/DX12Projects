@@ -8,7 +8,7 @@
 #define STATIC_ARRAY 0
 
 // Toggle between using octahedron animation or sphere animation
-#define SPHERE_VOLUME_ANIMATION 1
+#define SPHERE_VOLUME_ANIMATION 0
 
 // Params
 #define THREAD_X 8
@@ -17,10 +17,10 @@
 
 #define VOLUME_SIZE_X 384
 #define VOLUME_SIZE_Y 384
-#define VOLUME_SIZE_Z 384
+#define VOLUME_SIZE_Z 256
 
-#define VOLUME_SIZE_SCALE 0.01
-#define COLOR_COUNT 8
+#define VOLUME_SIZE_SCALE 0.01f
+#define COLOR_COUNT 7
 
 // Do not modify below this line
 #if __cplusplus
@@ -49,7 +49,6 @@ static XMINT4 shiftingColVals[] =
 	XMINT4( 1, 0, 1, 4 ),
 	XMINT4( 0, 1, 1, 5 ),
 	XMINT4( 1, 1, 1, 6 ),
-	XMINT4( 0, 0, 0, 7 ),
 };
 #endif
 
@@ -63,4 +62,14 @@ CBUFFER_ALIGN STRUCT(cbuffer) ConstantBuffer REGISTER(b0)
 #if !STATIC_ARRAY
 	XMINT4 shiftingColVals[COLOR_COUNT];
 #endif // !STATIC_ARRAY
+#if __cplusplus
+	void * operator new(size_t i)
+	{
+		return _aligned_malloc( i, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT );
+	};
+	void operator delete( void* p )
+	{
+		_aligned_free( p );
+	};
+#endif
 };

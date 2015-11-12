@@ -13,7 +13,7 @@ VolumetricAnimation::VolumetricAnimation( UINT width, UINT height, std::wstring 
 	m_volumeDepth = VOLUME_SIZE_Z;
 
 	m_pConstantBufferData = new ConstantBuffer();
-	m_pConstantBufferData->bgCol = XMINT4( 64, 64, 64, 64 );
+	m_pConstantBufferData->bgCol = XMINT4( 32,32,32,32 );
 
 #if !STATIC_ARRAY
 	for ( UINT i = 0; i < COLOR_COUNT;i++ )
@@ -23,7 +23,7 @@ VolumetricAnimation::VolumetricAnimation( UINT width, UINT height, std::wstring 
 
 VolumetricAnimation::~VolumetricAnimation()
 {
-	free( m_pConstantBufferData );
+	delete m_pConstantBufferData;
 }
 
 HRESULT VolumetricAnimation::OnInit()
@@ -312,13 +312,18 @@ HRESULT VolumetricAnimation::LoadAssets()
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the Texture2D.
 		UINT8* volumeBuffer = ( UINT8* ) malloc( volumeBufferSize );
-		memset( volumeBuffer, 64, volumeBufferSize );
-		//float radius = m_volumeHeight / 2.f;
+
 		float a = m_volumeWidth / 2.f;
 		float b = m_volumeHeight / 2.f;
 		float c = m_volumeDepth / 2.f;
+#if SPHERE_VOLUME_ANIMATION
 		float radius = sqrt( a*a + b*b + c*c );
-
+#else
+		float radius = ( abs( a ) + abs( b ) + abs( c ) );
+#endif
+		XMINT4 bg = m_pConstantBufferData->bgCol;
+		UINT bgMax = max( max( bg.x, bg.y ), bg.z );
+		m_pConstantBufferData->bgCol.w = bgMax;
 		for ( UINT z = 0; z < m_volumeDepth; z++ )
 			for ( UINT y = 0; y < m_volumeHeight; y++ )
 				for ( UINT x = 0; x < m_volumeWidth; x++ )
@@ -329,15 +334,17 @@ HRESULT VolumetricAnimation::LoadAssets()
 #if SPHERE_VOLUME_ANIMATION
 					float currentRaidus = sqrt( _x*_x + _y*_y + _z*_z );
 #else
-					float currentRaidus =0.5*(abs(_x)+abs(_y)+abs(_z));
+					float currentRaidus =(abs(_x)+abs(_y)+abs(_z));
 #endif
-					float scale = currentRaidus *4.f / radius;
-					UINT idx = 5 - (UINT)floor( scale );
-					UINT interm = ( UINT ) ( 192 * scale +0.5f );
-					UINT8 col = interm % 192+1;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 0] += col * shiftingColVals[idx].x;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 1] += col * shiftingColVals[idx].y;
-					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 2] += col * shiftingColVals[idx].z;
+					float scale = currentRaidus / radius;
+					UINT maxColCnt = 4;
+					float currentScale = scale * maxColCnt + 0.1f;
+					UINT idx = COLOR_COUNT - ( UINT ) ( currentScale ) - 1;
+					float intensity = currentScale - (UINT)currentScale;
+					UINT col = (UINT)(intensity * (255 - bgMax) ) + 1;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 0] = bg.x + col * shiftingColVals[idx].x;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 1] = bg.y + col * shiftingColVals[idx].y;
+					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 2] = bg.z + col * shiftingColVals[idx].z;
 					volumeBuffer[( x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth ) * 4 + 3] = shiftingColVals[idx].w;
 				}
 		D3D12_SUBRESOURCE_DATA volumeBufferData = {};
@@ -720,7 +727,7 @@ void VolumetricAnimation::PopulateComputeCommandList()
 
 	m_computeCmdList->SetComputeRootDescriptorTable( RootParameterCBV, cbvHandle );
 	m_computeCmdList->SetComputeRootDescriptorTable( RootParameterUAV, uavHandle );
-	m_computeCmdList->Dispatch( m_volumeWidth / 8, m_volumeHeight/ 8, m_volumeDepth/ 8);
+	m_computeCmdList->Dispatch( m_volumeWidth / THREAD_X, m_volumeHeight/ THREAD_Y, m_volumeDepth/ THREAD_Z);
 	m_computeCmdList->Close();
 }
 
