@@ -62,7 +62,7 @@ private:
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 	ComPtr<ID3D12Resource> m_volumeBuffer;
 
-	CModelViewerCamera m_camera;
+	OrbitCamera m_camera;
 	StepTimer m_timer;
 	struct ConstantBuffer* m_pConstantBufferData;
 	UINT8* m_pCbvDataBegin;
@@ -89,6 +89,8 @@ private:
 	HRESULT LoadPipeline();
 	HRESULT LoadAssets();
 	HRESULT LoadSizeDependentResource();
+	
+	void ResetCameraView();
 	void PopulateGraphicsCommandList();
 	void PopulateComputeCommandList();
 	void WaitForGraphicsCmd();

@@ -15,12 +15,16 @@
 #define THREAD_Y 8
 #define THREAD_Z 8
 
-#define VOLUME_SIZE_X 384
-#define VOLUME_SIZE_Y 384
+#define VOLUME_SIZE_X 256
+#define VOLUME_SIZE_Y 256
 #define VOLUME_SIZE_Z 256
 
 #define VOLUME_SIZE_SCALE 0.01f
 #define COLOR_COUNT 7
+
+#define DEFAULT_ORBIT_RADIUS 10.f
+#define MAX_ORBIT_RADIUS  100.f
+#define MIN_ORBIT_RADIUS  2.f
 
 // Do not modify below this line
 #if __cplusplus

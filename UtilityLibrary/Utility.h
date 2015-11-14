@@ -6,6 +6,12 @@
 #include <iostream>
 #include <fcntl.h>
 #include <thread>
+#include <comdef.h>
+#include <tchar.h>
+
+#define __FILENAME__ (wcsrchr (_T(__FILE__), L'\\') ? wcsrchr (_T(__FILE__), L'\\') + 1 : _T(__FILE__))
+
+#define ARRAY_COUNT(X) (sizeof(X)/sizeof((X)[0]))
 
 using namespace std;
 
@@ -204,6 +210,51 @@ inline void PrintMsg( MessageType msgType, const char* szFormat, ... )
 } 
 
 
+#if defined(DEBUG) || defined(_DEBUG)
+#ifndef V
+#define V(x) { hr = (x); if( FAILED(hr) ) { Trace( __FILENAME__, (DWORD)__LINE__, hr, L###x); __debugbreak(); } }
+#endif //#ifndef V
+#ifndef VRET
+#define VRET(x) { hr = (x); if( FAILED(hr) ) { return Trace( __FILENAME__, (DWORD)__LINE__, hr, L###x); __debugbreak(); } }
+#endif //#ifndef VRET
+#else
+#ifndef V
+#define V(x)           { hr = (x); }
+#endif //#ifndef V
+#ifndef VRET
+#define VRET(x)           { hr = (x); if( FAILED(hr) ) { return hr; } }
+#endif //#ifndef VRET
+#endif //#if defined(DEBUG) || defined(_DEBUG)
+
+inline HRESULT Trace( const wchar_t* strFile, DWORD dwLine, HRESULT hr, const wchar_t* strMsg )
+{
+	wchar_t szBuffer[MAX_MSG_LENGTH];
+	int offset = 0;
+	if ( strFile )
+	{
+		offset += wsprintf( szBuffer, L"line %u in file %s\n", dwLine, strFile );
+	}
+	offset += wsprintf( szBuffer + offset, L"Calling: %s failed!\n ", strMsg );
+	_com_error err( hr );
+	wsprintf( szBuffer + offset, err.ErrorMessage());
+	PRINTERROR( szBuffer );
+	return hr;
+}
+
+#ifdef ASSERT
+#undef ASSERT
+#endif
+
+#if defined(RELEASE)
+#define ASSERT(isTrue)
+#else
+#define ASSERT(isTrue) \
+	if(!(bool)(isTrue)){\
+		PRINTERROR("Assertion failed in" __FILENAME__ " @ " __LINE__"\n \t \'"#isTrue"\' is false.")}\
+		__debugbreak();\
+	}
+#endif
+
 //--------------------------------------------------------------------------------------
 // Profiling/instrumentation support
 //--------------------------------------------------------------------------------------
@@ -250,7 +301,8 @@ inline void ResizeConsole( HANDLE hConsole, SHORT xSize, SHORT ySize ) {
 	// Define the New Console Window Size and Scroll Position 
 	srWindowRect.Right = ( SHORT ) ( min( xSize, coordScreen.X ) - 1 );
 	srWindowRect.Bottom = ( SHORT ) ( min( ySize, coordScreen.Y ) - 1 );
-	srWindowRect.Left = srWindowRect.Top = ( SHORT ) 0;
+	srWindowRect.Left = ( SHORT ) 0;
+	srWindowRect.Top = ( SHORT ) 0;
 
 	// Define the New Console Buffer Size    
 	coordScreen.X = xSize;

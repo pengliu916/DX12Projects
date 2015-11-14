@@ -32,12 +32,12 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="VolumetricAnimation_SharedHeader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="VolumetricAnimation_shader.hlsl" />
     <CustomBuild Include="D3DX_DXGIFormatConvert.inl" />
+    <CustomBuild Include="VolumetricAnimation_SharedHeader.inl">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

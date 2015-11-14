@@ -1,41 +1,7 @@
 #pragma once
-#include <comdef.h>
-#include <tchar.h>
 #include "Utility.h"
 
 #define CBUFFER_ALIGN __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
-
-#define __FILENAME__ (wcsrchr (_T(__FILE__), L'\\') ? wcsrchr (_T(__FILE__), L'\\') + 1 : _T(__FILE__))
-#if defined(DEBUG) || defined(_DEBUG)
-#ifndef V
-#define V(x)           { hr = (x); if( FAILED(hr) ) { DXTrace( __FILENAME__, (DWORD)__LINE__, hr, L###x); __debugbreak(); } }
-#endif //#ifndef V
-#ifndef VRET
-#define VRET(x)           { hr = (x); if( FAILED(hr) ) { return DXTrace( __FILENAME__, (DWORD)__LINE__, hr, L###x); __debugbreak(); } }
-#endif //#ifndef VRET
-#else
-#ifndef V
-#define V(x)           { hr = (x); }
-#endif //#ifndef V
-#ifndef VRET
-#define VRET(x)           { hr = (x); if( FAILED(hr) ) { return hr; } }
-#endif //#ifndef VRET
-#endif //#if defined(DEBUG) || defined(_DEBUG)
-
-inline HRESULT DXTrace( const wchar_t* strFile, DWORD dwLine, HRESULT hr, const wchar_t* strMsg )
-{
-	wchar_t szBuffer[MAX_MSG_LENGTH];
-	int offset = 0;
-	if ( strFile )
-	{
-		offset += wsprintf( szBuffer, L"line %u in file %s\n", dwLine, strFile );
-	}
-	offset += wsprintf( szBuffer + offset, L"Calling: %s failed!\n ", strMsg );
-	_com_error err( hr );
-	wsprintf( szBuffer + offset, err.ErrorMessage());
-	PRINTERROR( szBuffer );
-	return hr;
-}
 
 inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
 {

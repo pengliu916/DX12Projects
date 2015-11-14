@@ -7,6 +7,12 @@
 using namespace DirectX;
 using namespace Microsoft::WRL;
 
+
+#define DEFAULT_ORBIT_RADIUS 10.f
+#define MAX_ORBIT_RADIUS  100.f
+#define MIN_ORBIT_RADIUS  2.f
+
+
 class RotatingCube : public DX12Framework
 {
 public:
@@ -51,7 +57,7 @@ private:
 	ComPtr<ID3D12Resource> m_indexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
-	CModelViewerCamera m_camera;
+	OrbitCamera m_camera;
 	StepTimer m_timer;
 
 	// Synchronization objects.
@@ -63,6 +69,7 @@ private:
 	HRESULT LoadPipeline();
 	HRESULT LoadAssets();
 	HRESULT LoadSizeDependentResource();
+	void ResetCameraView();
 	void PopulateCommandList();
 	void WaitForPreviousFrame();
 };

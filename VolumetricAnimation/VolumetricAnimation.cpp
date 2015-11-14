@@ -16,7 +16,7 @@ VolumetricAnimation::VolumetricAnimation( UINT width, UINT height, std::wstring 
 	m_pConstantBufferData->bgCol = XMINT4( 32,32,32,32 );
 
 #if !STATIC_ARRAY
-	for ( UINT i = 0; i < COLOR_COUNT;i++ )
+	for ( UINT i = 0; i < ARRAY_COUNT(shiftingColVals);i++ )
 		m_pConstantBufferData->shiftingColVals[i] = shiftingColVals[i];
 #endif
 }
@@ -24,6 +24,17 @@ VolumetricAnimation::VolumetricAnimation( UINT width, UINT height, std::wstring 
 VolumetricAnimation::~VolumetricAnimation()
 {
 	delete m_pConstantBufferData;
+}
+
+void VolumetricAnimation::ResetCameraView()
+{
+	auto center = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
+	auto radius = DEFAULT_ORBIT_RADIUS;
+	auto minRadius = MIN_ORBIT_RADIUS;
+	auto maxRadius = MAX_ORBIT_RADIUS;
+	auto longAngle = 4.50f;
+	auto latAngle = 1.45f;
+	m_camera.View( center, radius, minRadius, maxRadius, longAngle, latAngle );
 }
 
 HRESULT VolumetricAnimation::OnInit()
@@ -261,7 +272,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 		psoDesc.SampleMask = UINT_MAX;
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		psoDesc.NumRenderTargets = 1;
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 		psoDesc.SampleDesc.Count = 1;
 		VRET( m_device->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &m_pipelineState ) ) );
@@ -338,6 +349,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 #endif
 					float scale = currentRaidus / radius;
 					UINT maxColCnt = 4;
+					assert( maxColCnt < COLOR_COUNT );
 					float currentScale = scale * maxColCnt + 0.1f;
 					UINT idx = COLOR_COUNT - ( UINT ) ( currentScale ) - 1;
 					float intensity = currentScale - (UINT)currentScale;
@@ -510,13 +522,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 		WaitForGraphicsCmd();
 	}
 
-
-	XMVECTORF32 vecEye = { 5.0f, 5.0f, -5.0f };
-	XMVECTORF32 vecAt = { 0.0f, 0.0f, 0.0f };
-	m_camera.SetViewParams( vecEye, vecAt );
-	m_camera.SetEnablePositionMovement( true );
-
-	m_camera.SetButtonMasks( MOUSE_RIGHT_BUTTON, MOUSE_WHEEL, MOUSE_LEFT_BUTTON );
+	ResetCameraView();
 
 	return S_OK;
 }
@@ -562,19 +568,14 @@ HRESULT VolumetricAnimation::LoadSizeDependentResource()
 	m_scissorRect.bottom = static_cast< LONG >( m_height );
 
 	float fAspectRatio = m_width / ( FLOAT ) m_height;
-	m_camera.SetProjParams( XM_PI / 4, fAspectRatio, 0.1f, 12500.0f );
-	m_camera.SetWindow( m_width, m_height );
+	m_camera.Projection( XM_PIDIV2 / 2, fAspectRatio );
 	return S_OK;
 }
 
 // Update frame-based values.
 void VolumetricAnimation::OnUpdate()
 {
-	m_timer.Tick( NULL );
-	float frameTime = static_cast< float >( m_timer.GetElapsedSeconds() );
-	float frameChange = 2.0f * frameTime;
-
-	m_camera.FrameMove( frameTime );
+	m_camera.ProcessInertia( );
 }
 
 // Render the scene.
@@ -595,8 +596,8 @@ void VolumetricAnimation::OnRender()
 	m_graphicCmdQueue->ExecuteCommandLists( _countof( ppGraphicsCommandLists ), ppGraphicsCommandLists );
 
 	// Present the frame.
-	V( m_swapChain->Present( 0, 0 ) );
-	m_frameIndex = (m_frameIndex+1)% FrameCount;
+	V( m_swapChain->Present( m_vsync ? 1 : 0, 0 ) );
+	m_frameIndex = ( m_frameIndex + 1 ) % FrameCount;
 	//m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
 	WaitForGraphicsCmd();
@@ -643,7 +644,38 @@ void VolumetricAnimation::OnDestroy()
 
 bool VolumetricAnimation::OnEvent( MSG msg )
 {
-	m_camera.HandleMessages( msg.hwnd, msg.message, msg.wParam, msg.lParam );
+	switch ( msg.message )
+	{
+	case WM_MOUSEWHEEL:
+		{
+			auto delta = GET_WHEEL_DELTA_WPARAM( msg.wParam );
+			m_camera.ZoomRadius( -0.007f*delta );
+		}
+	case WM_POINTERDOWN:
+	case WM_POINTERUPDATE:
+	case WM_POINTERUP:
+		{
+			auto pointerId = GET_POINTERID_WPARAM( msg.wParam );
+			POINTER_INFO pointerInfo;
+			if ( GetPointerInfo( pointerId, &pointerInfo ) ) {
+				if ( msg.message == WM_POINTERDOWN ) {
+					// Compute pointer position in render units
+					POINT p = pointerInfo.ptPixelLocation;
+					ScreenToClient( m_hwnd, &p );
+					RECT clientRect;
+					GetClientRect( m_hwnd, &clientRect );
+					p.x = p.x * m_width / ( clientRect.right - clientRect.left );
+					p.y = p.y * m_height / ( clientRect.bottom - clientRect.top );
+					// Camera manipulation
+					m_camera.AddPointer( pointerId );
+				}
+			}
+
+			// Otherwise send it to the camera controls
+			m_camera.ProcessPointerFrames( pointerId, &pointerInfo );
+			if ( msg.message == WM_POINTERUP ) m_camera.RemovePointer( pointerId );
+		}
+	}
 	return false;
 }
 
@@ -660,13 +692,13 @@ void VolumetricAnimation::PopulateGraphicsCommandList()
 	// re-recording.
 	V( m_graphicCmdList->Reset( m_graphicCmdAllocator.Get(), m_pipelineState.Get() ) );
 
-	XMMATRIX view = m_camera.GetViewMatrix();
-	XMMATRIX proj = m_camera.GetProjMatrix();
+	XMMATRIX view = m_camera.View();
+	XMMATRIX proj = m_camera.Projection();
 
 	XMMATRIX world = XMMatrixIdentity();
 	m_pConstantBufferData->invWorld = XMMatrixInverse( nullptr, world );
 	m_pConstantBufferData->wvp = XMMatrixMultiply( XMMatrixMultiply( world, view ), proj );
-	XMStoreFloat4( &m_pConstantBufferData->viewPos, m_camera.GetEyePt() );
+	XMStoreFloat4( &m_pConstantBufferData->viewPos, m_camera.Eye() );
 	
 	memcpy( m_pCbvDataBegin, m_pConstantBufferData, sizeof( ConstantBuffer ) );
 

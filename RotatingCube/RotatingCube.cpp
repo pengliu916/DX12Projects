@@ -6,6 +6,17 @@ RotatingCube::RotatingCube( UINT width, UINT height, std::wstring name ) :
 	DX12Framework( width, height, name ),m_frameIndex( 0 ),m_viewport(),m_scissorRect(),m_rtvDescriptorSize( 0 )
 {}
 
+void RotatingCube::ResetCameraView()
+{
+	auto center = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
+	auto radius = DEFAULT_ORBIT_RADIUS;
+	auto minRadius = MIN_ORBIT_RADIUS;
+	auto maxRadius = MAX_ORBIT_RADIUS;
+	auto longAngle = 4.50f;
+	auto latAngle = 1.45f;
+	m_camera.View( center, radius, minRadius, maxRadius, longAngle, latAngle );
+}
+
 HRESULT RotatingCube::OnInit()
 {
 	HRESULT hr;
@@ -109,12 +120,6 @@ HRESULT RotatingCube::LoadPipeline()
 		VRET( m_device->CreateDescriptorHeap( &dsvHeapDesc, IID_PPV_ARGS( &m_dsvHeap ) ) );
 		DXDebugName( m_dsvHeap );
 	}
-
-	XMVECTORF32 vecEye = { 0.0f, 0.0f, -5.0f };
-	XMVECTORF32 vecAt = { 0.0f, 0.0f, 0.0f };
-	m_camera.SetViewParams( vecEye, vecAt );
-	m_camera.SetEnablePositionMovement( true );
-	m_camera.SetButtonMasks( MOUSE_RIGHT_BUTTON, MOUSE_WHEEL, MOUSE_LEFT_BUTTON );
 
 	VRET( m_device->CreateCommandAllocator( D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS( &m_commandAllocator ) ) );
 	DXDebugName( m_commandAllocator );
@@ -292,6 +297,8 @@ HRESULT RotatingCube::LoadAssets()
 		// complete before continuing.
 		WaitForPreviousFrame();
 	}
+
+	ResetCameraView();
 	return S_OK;
 }
 
@@ -336,19 +343,14 @@ HRESULT RotatingCube::LoadSizeDependentResource()
 	m_scissorRect.bottom = static_cast< LONG >( m_height );
 
 	float fAspectRatio = m_width / ( FLOAT ) m_height;
-	m_camera.SetProjParams( XM_PI / 4, fAspectRatio, 0.01f, 1250.0f );
-	m_camera.SetWindow( m_width, m_height );
+	m_camera.Projection( XM_PIDIV2 / 2, fAspectRatio );
 	return S_OK;
 }
 
 // Update frame-based values.
 void RotatingCube::OnUpdate()
 {
-	m_timer.Tick( NULL );
-	float frameTime = static_cast< float >( m_timer.GetElapsedSeconds() );
-	float frameChange = 2.0f * frameTime;
-
-	m_camera.FrameMove( frameTime );
+	m_camera.ProcessInertia();
 }
 
 // Render the scene.
@@ -363,7 +365,7 @@ void RotatingCube::OnRender()
 	m_commandQueue->ExecuteCommandLists( _countof( ppCommandLists ), ppCommandLists );
 
 	// Present the frame.
-	V( m_swapChain->Present( 0, 0 ) );
+	V( m_swapChain->Present( m_vsync ? 1 : 0, 0 ) );
 
 	WaitForPreviousFrame();
 }
@@ -407,7 +409,38 @@ void RotatingCube::OnDestroy()
 
 bool RotatingCube::OnEvent( MSG msg )
 {
-	m_camera.HandleMessages( msg.hwnd, msg.message, msg.wParam, msg.lParam );
+	switch ( msg.message )
+	{
+	case WM_MOUSEWHEEL:
+		{
+			auto delta = GET_WHEEL_DELTA_WPARAM( msg.wParam );
+			m_camera.ZoomRadius( -0.007f*delta );
+		}
+	case WM_POINTERDOWN:
+	case WM_POINTERUPDATE:
+	case WM_POINTERUP:
+		{
+			auto pointerId = GET_POINTERID_WPARAM( msg.wParam );
+			POINTER_INFO pointerInfo;
+			if ( GetPointerInfo( pointerId, &pointerInfo ) ) {
+				if ( msg.message == WM_POINTERDOWN ) {
+					// Compute pointer position in render units
+					POINT p = pointerInfo.ptPixelLocation;
+					ScreenToClient( m_hwnd, &p );
+					RECT clientRect;
+					GetClientRect( m_hwnd, &clientRect );
+					p.x = p.x * m_width / ( clientRect.right - clientRect.left );
+					p.y = p.y * m_height / ( clientRect.bottom - clientRect.top );
+					// Camera manipulation
+					m_camera.AddPointer( pointerId );
+				}
+			}
+
+			// Otherwise send it to the camera controls
+			m_camera.ProcessPointerFrames( pointerId, &pointerInfo );
+			if ( msg.message == WM_POINTERUP ) m_camera.RemovePointer( pointerId );
+		}
+	}
 	return false;
 }
 
@@ -424,8 +457,8 @@ void RotatingCube::PopulateCommandList()
 	// re-recording.
 	V( m_commandList->Reset( m_commandAllocator.Get(), m_pipelineState.Get() ) );
 
-	XMMATRIX view = m_camera.GetViewMatrix();
-	XMMATRIX proj = m_camera.GetProjMatrix();
+	XMMATRIX view = m_camera.View();
+	XMMATRIX proj = m_camera.Projection();
 
 	XMMATRIX world = XMMatrixRotationY( static_cast< float >( m_timer.GetTotalSeconds() ) );
 	XMMATRIX wvp = XMMatrixMultiply( XMMatrixMultiply( world, view ), proj );

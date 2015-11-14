@@ -66,6 +66,9 @@ protected:
 	// DX init finish event handle
 	HANDLE m_dxReady;
 
+	// Vsync
+	bool m_vsync;
+
 	// Adapter info.
 	bool m_useWarpDevice;
 

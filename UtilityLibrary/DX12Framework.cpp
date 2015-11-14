@@ -4,18 +4,21 @@
 #include "DXHelper.h"
 #include <shellapi.h>
 
+#ifdef _DEBUG
+#define ATTACH_CONSOLE 1
+#endif
 using namespace Microsoft::WRL;
 
 CRITICAL_SECTION outputCS;
 
 DX12Framework::DX12Framework(UINT width, UINT height, std::wstring name):
 	_stopped(false),_error(false),m_width(width),m_height(height),
-	m_newWidth(width),m_newHeight(height),m_useWarpDevice(false)
+	m_newWidth(width),m_newHeight(height),m_vsync(false),m_useWarpDevice(false)
 {
 	// Initialize output critical section
 	InitializeCriticalSection( &outputCS );
 
-#ifdef _DEBUG
+#if ATTACH_CONSOLE
 	AttachConsole();
 #endif
 
@@ -100,7 +103,21 @@ int DX12Framework::Run(HINSTANCE hInstance, int nCmdShow)
 	windowClass.lpszClassName = L"WindowClass1";
 	RegisterClassEx(&windowClass);
 
-	RECT windowRect = { 0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height) };
+	LONG top = 300;
+	LONG left = 300;
+
+#if ATTACH_CONSOLE
+	RECT rect;
+	HWND con_hwnd = GetConsoleWindow();
+	if ( GetWindowRect( con_hwnd, &rect ) )
+	{
+		top = rect.top + GetSystemMetrics( SM_CYFRAME ) + GetSystemMetrics( SM_CYCAPTION ) +
+			GetSystemMetrics( SM_CXPADDEDBORDER );
+		left = rect.right;
+	}
+#endif
+
+	RECT windowRect = { left, top, left + static_cast<LONG>(m_width), top + static_cast<LONG>(m_height) };
 	AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
 	// Create the window and store a handle to it.
@@ -108,8 +125,8 @@ int DX12Framework::Run(HINSTANCE hInstance, int nCmdShow)
 		L"WindowClass1",
 		m_title.c_str(),
 		WS_OVERLAPPEDWINDOW,
-		300,
-		300,
+		windowRect.left,
+		windowRect.top,
 		windowRect.right - windowRect.left,
 		windowRect.bottom - windowRect.top,
 		NULL,		// We have no parent window, NULL.
@@ -133,6 +150,8 @@ int DX12Framework::Run(HINSTANCE hInstance, int nCmdShow)
 	// Wait for DX init to finish, so window will show up with meaningful content
 	WaitForSingleObject( m_dxReady, INFINITE );
 	ShowWindow(m_hwnd, nCmdShow);
+
+	EnableMouseInPointer( TRUE );
 
 	// Main sample loop.
 	MSG msg = { 0 };
@@ -247,11 +266,29 @@ LRESULT CALLBACK DX12Framework::WindowProc(HWND hWnd, UINT message, WPARAM wPara
 		}
 		return 0;
 
+	case WM_KEYDOWN:
+		if ( lParam & ( 1 << 30 ) ) {
+			// Ignore repeats
+			return 0;
+		}
+		switch ( wParam ) {
+			//case VK_SPACE:
+		case VK_ESCAPE:
+			SendMessage( hWnd, WM_CLOSE, 0, 0 );
+			return 0;
+			// toggle vsync;
+		case 'V':
+			pSample->m_vsync = !pSample->m_vsync;
+			PRINTINFO( "Vsync is %s", pSample->m_vsync ? "on" : "off" );
+			return 0;
+		} // Switch on key code
+		return 0;
+
 	case WM_DESTROY:
-		PostQuitMessage(0);
+		PostQuitMessage( 0 );
 		return 0;
 	}
 
 	// Handle any messages the switch statement didn't.
-	return DefWindowProc(hWnd, message, wParam, lParam);
+	return DefWindowProc( hWnd, message, wParam, lParam );
 }
