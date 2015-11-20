@@ -2,7 +2,6 @@
 
 #include "DX12Framework.h"
 #include "Camera.h"
-#include "StepTimer.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -14,16 +13,17 @@ public:
 	~VolumetricAnimation();
 
 protected:
-	virtual HRESULT OnInit();
+	virtual void OnConfiguration( Settings* config );
+	virtual HRESULT OnInit(ID3D12Device* m_device);
 	virtual HRESULT OnSizeChanged();
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
-	virtual bool OnEvent( MSG msg );
+	virtual bool OnEvent( MSG* msg );
 
 private:
-	static const UINT FrameCount = 5;
 
+	static const int m_FrameCount = 3;
 	struct Vertex
 	{
 		XMFLOAT3 position;
@@ -32,12 +32,9 @@ private:
 	// Pipeline objects.
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
-	ComPtr<IDXGISwapChain3> m_swapChain;
-	ComPtr<ID3D12Device> m_device;
-	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
+	ComPtr<ID3D12Resource> m_renderTargets[m_FrameCount];
 	ComPtr<ID3D12CommandAllocator> m_graphicCmdAllocator;
 	ComPtr<ID3D12GraphicsCommandList> m_graphicCmdList;
-	ComPtr<ID3D12CommandQueue> m_graphicCmdQueue;
 	ComPtr<ID3D12RootSignature> m_graphicsRootSignature;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
@@ -63,7 +60,6 @@ private:
 	ComPtr<ID3D12Resource> m_volumeBuffer;
 
 	OrbitCamera m_camera;
-	StepTimer m_timer;
 	struct ConstantBuffer* m_pConstantBufferData;
 	UINT8* m_pCbvDataBegin;
 
@@ -86,7 +82,7 @@ private:
 		RootParametersCount
 	};
 
-	HRESULT LoadPipeline();
+	HRESULT LoadPipeline( ID3D12Device* m_device );
 	HRESULT LoadAssets();
 	HRESULT LoadSizeDependentResource();
 	

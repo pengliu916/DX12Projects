@@ -20,65 +20,69 @@
 
 #include "DXHelper.h"
 
+using namespace DirectX;
+using namespace Microsoft::WRL;
+
 class DX12Framework
 {
 public:
-	DX12Framework(UINT width, UINT height, std::wstring name);
+	DX12Framework( UINT width, UINT height, std::wstring name );
 	virtual ~DX12Framework();
 
-	int Run(HINSTANCE hInstance, int nCmdShow);
-	void SetCustomWindowText(LPCWSTR text);
+	int Run( HINSTANCE hInstance, int nCmdShow );
+	void SetCustomWindowText( LPCWSTR text );
 
 protected:
+	struct Settings
+	{
+		bool enableFullScreen;
+		bool warpDevice;
+		DXGI_SWAP_CHAIN_DESC swapChainDesc;
+		
+		// Free to be changed after init
+		//Vsync
+		bool vsync;
 
-	void RenderLoop();
-	
-	virtual HRESULT OnInit() = 0;
+	};
+
+	// Framework interface for rendering loop
+	virtual void ParseCommandLineArgs();
+	virtual void OnConfiguration(Settings* config);
+	virtual HRESULT OnInit( ID3D12Device* device ) = 0;
 	virtual HRESULT OnSizeChanged() = 0;
 	virtual void OnUpdate() = 0;
 	virtual void OnRender() = 0;
 	virtual void OnDestroy() = 0;
-	virtual bool OnEvent(MSG msg) = 0;
+	virtual bool OnEvent( MSG* msg ) = 0;
 
-	std::wstring GetAssetFullPath(LPCWSTR assetName);
+	std::wstring GetAssetFullPath( LPCWSTR assetName );
+	HRESULT ResizeBackBuffer();
 
-	void GetHardwareAdapter( _In_ IDXGIFactory4* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter );
-
-	static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-
-	bool _stopped;
-	bool _error;
-	// In multi-thread scenario, current thread may read old version of the following boolean due to 
-	// unflushed cache etc. So to use flag in multi-thread cases, atomic bool is needed, and memory order semantic is crucial 
-	std::atomic<bool> _resize;
-
-	// Viewport dimensions.
-	UINT m_width;
-	UINT m_height;
-	float m_aspectRatio;
+	// temp variable for display GPU timing
+	wchar_t strCustom[256];
 	
-	UINT m_newWidth;
-	UINT m_newHeight;
-
+	// Framework level gfx resource
+	ComPtr<ID3D12Device> framework_gfxDevice;
+	ComPtr<IDXGISwapChain3> framework_gfxSwapChain;
+	ComPtr<ID3D12CommandQueue> framework_gfxBackbufferGfxCmdQueue;
+	// gfx settings
+	Settings framework_config;
 	// Window handle.
-	HWND m_hwnd;
-
-	// DX init finish event handle
-	HANDLE m_dxReady;
-
-	// Vsync
-	bool m_vsync;
-
-	// Adapter info.
-	bool m_useWarpDevice;
+	HWND framework_hwnd;
 
 private:
-	void ParseCommandLineArgs();
 
 	// Root assets path.
-	std::wstring m_assetsPath;
-
+	std::wstring framework_assetsPath;
 	// Window title.
-	std::wstring m_title;
+	std::wstring framework_title;
 
+	static LRESULT CALLBACK WindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
+	void RenderLoop();
+	HRESULT FrameworkInit();
+	void FrameworkUpdate();
+	void FrameworkRender();
+	void FrameworkDestory();
+	void FrameworkResize();
+	void FrameworkHandleEvent( MSG* msg );
 };

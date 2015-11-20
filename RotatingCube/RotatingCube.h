@@ -19,15 +19,16 @@ public:
 	RotatingCube( UINT width, UINT height, std::wstring name );
 
 protected:
-	virtual HRESULT OnInit();
+	virtual void OnConfiguration( Settings* config );
+	virtual HRESULT OnInit( ID3D12Device* m_device );
 	virtual HRESULT OnSizeChanged();
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
-	virtual bool OnEvent( MSG msg );
+	virtual bool OnEvent( MSG* msg );
 
 private:
-	static const UINT FrameCount = 3;
+	static const UINT m_FrameCount = 3;
 
 	struct Vertex
 	{
@@ -38,11 +39,8 @@ private:
 	// Pipeline objects.
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
-	ComPtr<IDXGISwapChain3> m_swapChain;
-	ComPtr<ID3D12Device> m_device;
-	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
+	ComPtr<ID3D12Resource> m_renderTargets[m_FrameCount];
 	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
-	ComPtr<ID3D12CommandQueue> m_commandQueue;
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;

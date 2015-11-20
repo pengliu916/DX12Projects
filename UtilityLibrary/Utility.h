@@ -9,9 +9,41 @@
 #include <comdef.h>
 #include <tchar.h>
 
+#pragma warning(disable: 4996)
+
+#define STRINGIFY(x) #x
 #define __FILENAME__ (wcsrchr (_T(__FILE__), L'\\') ? wcsrchr (_T(__FILE__), L'\\') + 1 : _T(__FILE__))
 
 #define ARRAY_COUNT(X) (sizeof(X)/sizeof((X)[0]))
+
+inline void SetThreadName( const char* Name )
+{
+	// http://msdn.microsoft.com/en-us/library/xcb2z8hs(v=vs.110).aspx
+#pragma pack(push,8)
+	typedef struct tagTHREADNAME_INFO
+	{
+		DWORD dwType; // must be 0x1000
+		LPCSTR szName; // pointer to name (in user addr space)
+		DWORD dwThreadID; // thread ID (-1=caller thread)
+		DWORD dwFlags; // reserved for future use, must be zero
+	} THREADNAME_INFO;
+#pragma pack(pop)
+
+	THREADNAME_INFO info;
+	{
+		info.dwType = 0x1000;
+		info.szName = Name;
+		info.dwThreadID = ( DWORD ) -1;
+		info.dwFlags = 0;
+	}
+	__try
+	{
+		RaiseException( 0x406D1388, 0, sizeof( info ) / sizeof( ULONG_PTR ), ( ULONG_PTR* ) &info );
+	}
+	__except ( EXCEPTION_CONTINUE_EXECUTION )
+	{
+	}
+}
 
 using namespace std;
 
@@ -245,13 +277,14 @@ inline HRESULT Trace( const wchar_t* strFile, DWORD dwLine, HRESULT hr, const wc
 #undef ASSERT
 #endif
 
+
 #if defined(RELEASE)
 #define ASSERT(isTrue)
 #else
 #define ASSERT(isTrue) \
-	if(!(bool)(isTrue)){\
-		PRINTERROR("Assertion failed in" __FILENAME__ " @ " __LINE__"\n \t \'"#isTrue"\' is false.")}\
-		__debugbreak();\
+	if(!(bool)(isTrue)){ \
+		PRINTERROR("Assertion failed in" STRINGIFY(__FILENAME__) " @ " STRINGIFY(__LINE__)"\n \t \'"#isTrue"\' is false."); \
+		__debugbreak(); \
 	}
 #endif
 
