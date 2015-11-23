@@ -37,7 +37,7 @@ protected:
 	{
 		bool enableFullScreen;
 		bool warpDevice;
-		DXGI_SWAP_CHAIN_DESC swapChainDesc;
+		DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
 		
 		// Free to be changed after init
 		//Vsync

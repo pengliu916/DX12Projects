@@ -48,7 +48,7 @@ inline void SetThreadName( const char* Name )
 using namespace std;
 
 // console window size in character 
-static const SHORT CONSOLE_WINDOW_WIDTH = 80;
+static const SHORT CONSOLE_WINDOW_WIDTH = 100;
 static const SHORT CONSOLE_WINDOW_HEIGHT = 30;
 // maximum number of lines the output console should have
 static const WORD MAX_CONSOLE_LINES = 500;

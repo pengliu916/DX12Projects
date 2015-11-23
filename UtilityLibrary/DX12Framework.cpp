@@ -35,6 +35,7 @@ namespace
 	{
 		ComPtr<IDXGIAdapter1> adapter;
 		*ppAdapter = nullptr;
+		bool found = false;
 
 		for ( UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != pFactory->EnumAdapters1( adapterIndex, &adapter ); ++adapterIndex )
 		{
@@ -45,6 +46,7 @@ namespace
 			{
 				// Don't select the Basic Render Driver adapter.
 				// If you want a software adapter, pass in "/warp" on the command line.
+				PRINTINFO( L"D3D12-capable hardware found:  %s (%u MB)", desc.Description, desc.DedicatedVideoMemory >> 20 );
 				continue;
 			}
 
@@ -53,8 +55,11 @@ namespace
 			if ( SUCCEEDED( D3D12CreateDevice( adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof( ID3D12Device ), nullptr ) ) )
 			{
 				adapter->GetDesc1( &desc );
-				PRINTINFO( L"D3D12-capable hardware found:  %s (%u MB)", desc.Description, desc.DedicatedVideoMemory >> 20 );
-				break;
+				PRINTINFO( L"D3D12-capable hardware found (selected):  %s (%u MB)", desc.Description, desc.DedicatedVideoMemory >> 20 );
+				if ( !found )
+					*ppAdapter = adapter.Detach();
+				found = true;
+				//break;
 			}
 		}
 		*ppAdapter = adapter.Detach();
@@ -69,8 +74,8 @@ DX12Framework::DX12Framework( UINT width, UINT height, std::wstring name )
 	framework_config.warpDevice = false;
 	framework_config.vsync = false;
 	framework_config.swapChainDesc = {};
-	framework_config.swapChainDesc.BufferDesc.Width = width;
-	framework_config.swapChainDesc.BufferDesc.Height = height;
+	framework_config.swapChainDesc.Width = width;
+	framework_config.swapChainDesc.Height = height;
 	framework_config.swapChainDesc.BufferCount = 3;
 
 	// Initialize output critical section
@@ -84,6 +89,7 @@ DX12Framework::DX12Framework( UINT width, UINT height, std::wstring name )
 
 	PRINTINFO( L"%s start", name.c_str() );
 
+	strCustom[0] = L'\0';
 	WCHAR assetsPath[512];
 	GetAssetsPath( assetsPath, _countof( assetsPath ) );
 	framework_assetsPath = assetsPath;
@@ -104,12 +110,15 @@ HRESULT DX12Framework::FrameworkInit()
 {
 	HRESULT hr;
 
-	framework_config.swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	framework_config.swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	framework_config.swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	framework_config.swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	framework_config.swapChainDesc.OutputWindow = framework_hwnd;
+	framework_config.swapChainDesc.Stereo = FALSE;
 	framework_config.swapChainDesc.SampleDesc.Count = 1;
-	framework_config.swapChainDesc.Windowed = TRUE;
+	framework_config.swapChainDesc.SampleDesc.Quality = 0;
+	framework_config.swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+	framework_config.swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED; // Not used
+	framework_config.swapChainDesc.Flags = 0;
 
 	// Giving app a chance to modify the framework level resource settings
 	OnConfiguration( &framework_config );
@@ -169,9 +178,9 @@ HRESULT DX12Framework::FrameworkInit()
 
 	ASSERT( framework_config.swapChainDesc.BufferCount <= DXGI_MAX_SWAP_CHAIN_BUFFERS );
 	// Create the swap chain
-	ComPtr<IDXGISwapChain> swapChain;
+	ComPtr<IDXGISwapChain1> swapChain;
 	// Swap chain needs the queue so that it can force a flush on it.
-	VRET( factory->CreateSwapChain( framework_gfxBackbufferGfxCmdQueue.Get(), &framework_config.swapChainDesc, &swapChain ) );
+	VRET( factory->CreateSwapChainForHwnd( framework_gfxBackbufferGfxCmdQueue.Get(), framework_hwnd, &framework_config.swapChainDesc,NULL,NULL, &swapChain ) );
 	VRET( swapChain.As( &framework_gfxSwapChain ) );
 	DXDebugName( framework_gfxSwapChain );
 
@@ -214,10 +223,10 @@ void DX12Framework::FrameworkHandleEvent( MSG* msg )
 
 void DX12Framework::FrameworkResize()
 {
-	framework_config.swapChainDesc.BufferDesc.Width = _width;
-	framework_config.swapChainDesc.BufferDesc.Height = _height;
+	framework_config.swapChainDesc.Width = _width;
+	framework_config.swapChainDesc.Height = _height;
 	OnSizeChanged();
-	PRINTINFO( "Window resize to %d x %d", framework_config.swapChainDesc.BufferDesc.Width, framework_config.swapChainDesc.BufferDesc.Height );
+	PRINTINFO( "Window resize to %d x %d", framework_config.swapChainDesc.Width, framework_config.swapChainDesc.Height );
 }
 
 void DX12Framework::RenderLoop()
@@ -297,7 +306,8 @@ int DX12Framework::Run( HINSTANCE hInstance, int nCmdShow )
 	}
 #endif
 
-	RECT windowRect = { left, top, left + static_cast< LONG >( framework_config.swapChainDesc.BufferDesc.Width ), top + static_cast< LONG >( framework_config.swapChainDesc.BufferDesc.Height ) };
+	RECT windowRect = { left, top, left + static_cast< LONG >( framework_config.swapChainDesc.Width ), 
+		top + static_cast< LONG >( framework_config.swapChainDesc.Height ) };
 	AdjustWindowRect( &windowRect, WS_OVERLAPPEDWINDOW, FALSE );
 
 	// Create the window and store a handle to it.
@@ -365,9 +375,9 @@ HRESULT DX12Framework::ResizeBackBuffer()
 	DXGI_SWAP_CHAIN_DESC desc = {};
 	framework_gfxSwapChain->GetDesc( &desc );
 	VRET( framework_gfxSwapChain->ResizeBuffers( framework_config.swapChainDesc.BufferCount,
-									  framework_config.swapChainDesc.BufferDesc.Width, 
-									  framework_config.swapChainDesc.BufferDesc.Height,
-									  framework_config.swapChainDesc.BufferDesc.Format,
+									  framework_config.swapChainDesc.Width, 
+									  framework_config.swapChainDesc.Height,
+									  framework_config.swapChainDesc.Format,
 									  framework_config.swapChainDesc.Flags ) );
 	return hr;
 }
@@ -418,7 +428,7 @@ LRESULT CALLBACK DX12Framework::WindowProc( HWND hWnd, UINT message, WPARAM wPar
 			GetClientRect( hWnd, &clientRect );
 			_width = clientRect.right - clientRect.left;
 			_height = clientRect.bottom - clientRect.top;
-			if ( pSample->framework_config.swapChainDesc.BufferDesc.Width != _width || pSample->framework_config.swapChainDesc.BufferDesc.Height != _height )
+			if ( pSample->framework_config.swapChainDesc.Width != _width || pSample->framework_config.swapChainDesc.Height != _height )
 				_resize.store( true, memory_order_release );
 		}
 		return 0;
