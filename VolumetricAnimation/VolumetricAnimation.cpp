@@ -205,7 +205,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 		psoDesc.SampleMask = UINT_MAX;
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		psoDesc.NumRenderTargets = 1;
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		psoDesc.RTVFormats[0] = framework_config.swapChainDesc.Format;
 		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 		psoDesc.SampleDesc.Count = 1;
 		VRET( framework_gfxDevice->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &m_pipelineState ) ) );
@@ -220,15 +220,20 @@ HRESULT VolumetricAnimation::LoadAssets()
 		DXDebugName( m_computeState );
 	}
 
-	// Create the compute command list.
-	VRET( framework_gfxDevice->CreateCommandList( 0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeCmdAllocator.Get(), m_computeState.Get(), IID_PPV_ARGS( &m_computeCmdList ) ) );
-	DXDebugName( m_computeCmdList );
+	for ( int i = 0; i < m_FrameCount; i++ )
+	{
+		// Create the compute command list.
+		VRET( framework_gfxDevice->CreateCommandList( 0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeCmdAllocator.Get(), m_computeState.Get(), IID_PPV_ARGS( &m_computeCmdList[i] ) ) );
+		DXDebugName( m_computeCmdList[i] );
+		VRET( m_computeCmdList[i]->Close() );
 
-	VRET( m_computeCmdList->Close() );
+		// Create the graphics command list.
+		VRET( framework_gfxDevice->CreateCommandList( 0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_graphicCmdAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS( &m_graphicCmdList[i] ) ) );
+		DXDebugName( m_graphicCmdList[i] );
+		VRET( m_graphicCmdList[i]->Close() );
+	}
 
-	// Create the graphics command list.
-	VRET( framework_gfxDevice->CreateCommandList( 0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_graphicCmdAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS( &m_graphicCmdList ) ) );
-	DXDebugName( m_graphicCmdList );
+	m_graphicCmdList[0]->Reset( m_graphicCmdAllocator.Get(), m_pipelineState.Get() );
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 	// the command list that references it has finished executing on the GPU.
@@ -244,14 +249,14 @@ HRESULT VolumetricAnimation::LoadAssets()
 		D3D12_RESOURCE_DESC uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer( volumeBufferSize );
 
 		VRET( framework_gfxDevice->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_DEFAULT ), D3D12_HEAP_FLAG_NONE,
-												 &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS( &m_volumeBuffer ) ) );
+															&bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS( &m_volumeBuffer ) ) );
 
 		const UINT64 uploadBufferSize = GetRequiredIntermediateSize( m_volumeBuffer.Get(), 0, 1 );
 
 		// Create the GPU upload buffer.
 		VRET( framework_gfxDevice->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ), D3D12_HEAP_FLAG_NONE,
-												 &uploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
-												 nullptr, IID_PPV_ARGS( &volumeBufferUploadHeap ) ) );
+															&uploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
+															nullptr, IID_PPV_ARGS( &volumeBufferUploadHeap ) ) );
 
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the Texture2D.
@@ -297,9 +302,9 @@ HRESULT VolumetricAnimation::LoadAssets()
 		volumeBufferData.RowPitch = volumeBufferSize;
 		volumeBufferData.SlicePitch = volumeBufferData.RowPitch;
 
-		UpdateSubresources<1>( m_graphicCmdList.Get(), m_volumeBuffer.Get(), volumeBufferUploadHeap.Get(), 0, 0, 1, &volumeBufferData );
+		UpdateSubresources<1>( m_graphicCmdList[0].Get(), m_volumeBuffer.Get(), volumeBufferUploadHeap.Get(), 0, 0, 1, &volumeBufferData );
 		free( volumeBuffer );
-		m_graphicCmdList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_volumeBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS ) );
+		m_graphicCmdList[0]->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_volumeBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS ) );
 
 		// Describe and create a SRV for the volumeBuffer.
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -352,11 +357,11 @@ HRESULT VolumetricAnimation::LoadAssets()
 		const UINT vertexBufferSize = sizeof( cubeVertices );
 
 		VRET( framework_gfxDevice->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ), D3D12_HEAP_FLAG_NONE,
-												 &CD3DX12_RESOURCE_DESC::Buffer( vertexBufferSize ), D3D12_RESOURCE_STATE_GENERIC_READ,
-												 nullptr, IID_PPV_ARGS( &vertexBufferUpload ) ) );
+															&CD3DX12_RESOURCE_DESC::Buffer( vertexBufferSize ), D3D12_RESOURCE_STATE_GENERIC_READ,
+															nullptr, IID_PPV_ARGS( &vertexBufferUpload ) ) );
 		VRET( framework_gfxDevice->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_DEFAULT ), D3D12_HEAP_FLAG_NONE,
-												 &CD3DX12_RESOURCE_DESC::Buffer( vertexBufferSize ), D3D12_RESOURCE_STATE_COPY_DEST,
-												 nullptr, IID_PPV_ARGS( &m_vertexBuffer ) ) );
+															&CD3DX12_RESOURCE_DESC::Buffer( vertexBufferSize ), D3D12_RESOURCE_STATE_COPY_DEST,
+															nullptr, IID_PPV_ARGS( &m_vertexBuffer ) ) );
 		DXDebugName( m_vertexBuffer );
 
 		D3D12_SUBRESOURCE_DATA vertexData = {};
@@ -364,9 +369,9 @@ HRESULT VolumetricAnimation::LoadAssets()
 		vertexData.RowPitch = vertexBufferSize;
 		vertexData.SlicePitch = vertexBufferSize;
 
-		UpdateSubresources<1>( m_graphicCmdList.Get(), m_vertexBuffer.Get(), vertexBufferUpload.Get(), 0, 0, 1, &vertexData );
-		m_graphicCmdList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
-																					 D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER ) );
+		UpdateSubresources<1>( m_graphicCmdList[0].Get(), m_vertexBuffer.Get(), vertexBufferUpload.Get(), 0, 0, 1, &vertexData );
+		m_graphicCmdList[0]->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+																						D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER ) );
 
 		// Initialize the vertex buffer view.
 		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
@@ -390,11 +395,11 @@ HRESULT VolumetricAnimation::LoadAssets()
 		const UINT indexBufferSize = sizeof( cubeIndices );
 
 		VRET( framework_gfxDevice->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ), D3D12_HEAP_FLAG_NONE,
-												 &CD3DX12_RESOURCE_DESC::Buffer( indexBufferSize ), D3D12_RESOURCE_STATE_GENERIC_READ,
-												 nullptr, IID_PPV_ARGS( &indexBufferUpload ) ) );
+															&CD3DX12_RESOURCE_DESC::Buffer( indexBufferSize ), D3D12_RESOURCE_STATE_GENERIC_READ,
+															nullptr, IID_PPV_ARGS( &indexBufferUpload ) ) );
 		VRET( framework_gfxDevice->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_DEFAULT ), D3D12_HEAP_FLAG_NONE,
-												 &CD3DX12_RESOURCE_DESC::Buffer( indexBufferSize ), D3D12_RESOURCE_STATE_COPY_DEST,
-												 nullptr, IID_PPV_ARGS( &m_indexBuffer ) ) );
+															&CD3DX12_RESOURCE_DESC::Buffer( indexBufferSize ), D3D12_RESOURCE_STATE_COPY_DEST,
+															nullptr, IID_PPV_ARGS( &m_indexBuffer ) ) );
 		DXDebugName( m_indexBuffer );
 
 		D3D12_SUBRESOURCE_DATA indexData = {};
@@ -402,9 +407,9 @@ HRESULT VolumetricAnimation::LoadAssets()
 		indexData.RowPitch = indexBufferSize;
 		indexData.SlicePitch = indexBufferSize;
 
-		UpdateSubresources<1>( m_graphicCmdList.Get(), m_indexBuffer.Get(), indexBufferUpload.Get(), 0, 0, 1, &indexData );
-		m_graphicCmdList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
-																					 D3D12_RESOURCE_STATE_INDEX_BUFFER ) );
+		UpdateSubresources<1>( m_graphicCmdList[0].Get(), m_indexBuffer.Get(), indexBufferUpload.Get(), 0, 0, 1, &indexData );
+		m_graphicCmdList[0]->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+																						D3D12_RESOURCE_STATE_INDEX_BUFFER ) );
 
 		m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
 		m_indexBufferView.SizeInBytes = sizeof( cubeIndices );
@@ -414,8 +419,8 @@ HRESULT VolumetricAnimation::LoadAssets()
 	// Create the constant buffer
 	{
 		VRET( framework_gfxDevice->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ), D3D12_HEAP_FLAG_NONE,
-												 &CD3DX12_RESOURCE_DESC::Buffer( 1024 * 64 ), D3D12_RESOURCE_STATE_GENERIC_READ,
-												 nullptr, IID_PPV_ARGS( &m_constantBuffer ) ) );
+															&CD3DX12_RESOURCE_DESC::Buffer( 1024 * 64 ), D3D12_RESOURCE_STATE_GENERIC_READ,
+															nullptr, IID_PPV_ARGS( &m_constantBuffer ) ) );
 		DXDebugName( m_constantBuffer );
 
 		// Describe and create a constant buffer view.
@@ -432,15 +437,15 @@ HRESULT VolumetricAnimation::LoadAssets()
 	}
 
 	// Close the command list and execute it to begin the initial GPU setup.
-	VRET( m_graphicCmdList->Close() );
-	ID3D12CommandList* ppCommandLists[] = { m_graphicCmdList.Get() };
+	VRET( m_graphicCmdList[0]->Close() );
+	ID3D12CommandList* ppCommandLists[] = { m_graphicCmdList[0].Get() };
 	framework_gfxBackbufferGfxCmdQueue->ExecuteCommandLists( _countof( ppCommandLists ), ppCommandLists );
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
 		VRET( framework_gfxDevice->CreateFence( 0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS( &m_fence ) ) );
 		DXDebugName( m_fence );
-		m_fenceValue = 1;
+		m_fenceValue[0] = 1;
 
 		// Create an event handle to use for frame synchronization.
 		m_fenceEvent = CreateEvent( nullptr, FALSE, FALSE, nullptr );
@@ -465,16 +470,24 @@ HRESULT VolumetricAnimation::LoadSizeDependentResource()
 {
 	HRESULT hr;
 
-	uint32_t width = framework_config.swapChainDesc.BufferDesc.Width;
-	uint32_t height = framework_config.swapChainDesc.BufferDesc.Height;
+	uint32_t width = framework_config.swapChainDesc.Width;
+	uint32_t height = framework_config.swapChainDesc.Height;
 
 	// Create render target views (RTVs).
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle( m_rtvHeap->GetCPUDescriptorHandleForHeapStart() );
+
+	// Create an SRGB view of the swap chain buffer
+	D3D12_RENDER_TARGET_VIEW_DESC desc = {};
+	desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+	desc.Texture2D.MipSlice = 0;
+	desc.Texture2D.PlaneSlice = 0;
+
 	for ( UINT i = 0; i < m_FrameCount; i++ )
 	{
 		VRET( framework_gfxSwapChain->GetBuffer( i, IID_PPV_ARGS( &m_renderTargets[i] ) ) );
 		DXDebugName( m_renderTargets[i] );
-		framework_gfxDevice->CreateRenderTargetView( m_renderTargets[i].Get(), nullptr, rtvHandle );
+		framework_gfxDevice->CreateRenderTargetView( m_renderTargets[i].Get(), &desc, rtvHandle );
 		rtvHandle.Offset( 1, m_rtvDescriptorSize );
 	}
 
@@ -491,12 +504,19 @@ HRESULT VolumetricAnimation::LoadSizeDependentResource()
 		clearValue.DepthStencil.Stencil = 0;
 
 		VRET( framework_gfxDevice->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_DEFAULT ), D3D12_HEAP_FLAG_NONE, &shadowTextureDesc,
-												 D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue, IID_PPV_ARGS( &m_depthBuffer ) ) );
+															D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue, IID_PPV_ARGS( &m_depthBuffer ) ) );
 		DXDebugName( m_depthBuffer );
 
 		// Create the depth stencil view.
 		framework_gfxDevice->CreateDepthStencilView( m_depthBuffer.Get(), nullptr, m_dsvHeap->GetCPUDescriptorHandleForHeapStart() );
 	}
+
+	// Check whether use toggled reuseCmdlist
+	if ( reuseCmdList )
+	{
+		CreateReuseCmdLists();
+	}
+
 	m_viewport.Width = static_cast< float >( width );
 	m_viewport.Height = static_cast< float >( height );
 	m_viewport.MaxDepth = 1.0f;
@@ -521,31 +541,70 @@ void VolumetricAnimation::OnUpdate()
 	GPU_Profiler::GetTimingStr( 1, temp + n );
 	swprintf( strCustom, L"%hs", temp );
 #endif
+
+	// Check whether use toggled reuseCmdlist
+	if ( reuseCmdListToggled )
+	{
+		// Reset the trigger flag
+		reuseCmdListToggled = false;
+		// Toggle the setting
+		reuseCmdList = !reuseCmdList;
+		PRINTINFO( "Reuse CmdList is %s", reuseCmdList ? "on" : "off" );
+
+		CreateReuseCmdLists();
+	}
 }
 
 // Render the scene.
 void VolumetricAnimation::OnRender()
 {
 	HRESULT hr;
-	PopulateComputeCommandList();
-	ID3D12CommandList* ppComputeCommandLists[] = { m_computeCmdList.Get() };
-	m_computeCmdQueue->ExecuteCommandLists( _countof( ppComputeCommandLists ), ppComputeCommandLists );
+	ID3D12CommandList* ppComputeCommandLists[1];
+	ID3D12CommandList* ppGraphicsCommandLists[1];
 
-	WaitForComputeCmd();
+	XMMATRIX view = m_camera.View();
+	XMMATRIX proj = m_camera.Projection();
 
-	// Record all the commands we need to render the scene into the command list.
-	PopulateGraphicsCommandList();
+	XMMATRIX world = XMMatrixIdentity();
+	m_pConstantBufferData->invWorld = XMMatrixInverse( nullptr, world );
+	m_pConstantBufferData->wvp = XMMatrixMultiply( XMMatrixMultiply( world, view ), proj );
+	XMStoreFloat4( &m_pConstantBufferData->viewPos, m_camera.Eye() );
 
-	// Execute the command list.
-	ID3D12CommandList* ppGraphicsCommandLists[] = { m_graphicCmdList.Get() };
-	framework_gfxBackbufferGfxCmdQueue->ExecuteCommandLists( _countof( ppGraphicsCommandLists ), ppGraphicsCommandLists );
+	memcpy( m_pCbvDataBegin, m_pConstantBufferData, sizeof( ConstantBuffer ) );
+
+	if ( !reuseCmdList )
+	{
+		PopulateComputeCommandList( 0 );
+		ppComputeCommandLists[0] = m_computeCmdList[0].Get();
+		m_computeCmdQueue->ExecuteCommandLists( _countof( ppComputeCommandLists ), ppComputeCommandLists );
+
+		WaitForComputeCmd();
+
+		PopulateGraphicsCommandList( m_frameIndex );
+		ppGraphicsCommandLists[0] = m_graphicCmdList[m_frameIndex].Get();
+		framework_gfxBackbufferGfxCmdQueue->ExecuteCommandLists( _countof( ppGraphicsCommandLists ), ppGraphicsCommandLists );
+	}
+	else
+	{
+		ppComputeCommandLists[0] = m_computeCmdList[m_frameIndex].Get();
+		m_computeCmdQueue->ExecuteCommandLists( _countof( ppComputeCommandLists ), ppComputeCommandLists );
+
+		WaitForComputeCmd();
+
+		ppGraphicsCommandLists[0] = m_graphicCmdList[m_frameIndex].Get();
+		framework_gfxBackbufferGfxCmdQueue->ExecuteCommandLists( _countof( ppGraphicsCommandLists ), ppGraphicsCommandLists );
+	}
+
+	DXGI_PRESENT_PARAMETERS param;
+	param.DirtyRectsCount = 0;
+	param.pDirtyRects = NULL;
+	param.pScrollRect = NULL;
+	param.pScrollOffset = NULL;
 
 	// Present the frame.
-	V( framework_gfxSwapChain->Present( framework_config.vsync ? 1 : 0, 0 ) );
+	V( framework_gfxSwapChain->Present1( framework_config.vsync ? 1 : 0, 0, &param ) );
 	m_frameIndex = ( m_frameIndex + 1 ) % m_FrameCount;
-
 	WaitForGraphicsCmd();
-
 }
 
 HRESULT VolumetricAnimation::OnSizeChanged()
@@ -590,6 +649,7 @@ bool VolumetricAnimation::OnEvent( MSG* msg )
 		{
 			auto delta = GET_WHEEL_DELTA_WPARAM( msg->wParam );
 			m_camera.ZoomRadius( -0.007f*delta );
+			return true;
 		}
 	case WM_POINTERDOWN:
 	case WM_POINTERUPDATE:
@@ -604,8 +664,8 @@ bool VolumetricAnimation::OnEvent( MSG* msg )
 					ScreenToClient( framework_hwnd, &p );
 					RECT clientRect;
 					GetClientRect( framework_hwnd, &clientRect );
-					p.x = p.x * framework_config.swapChainDesc.BufferDesc.Width / ( clientRect.right - clientRect.left );
-					p.y = p.y * framework_config.swapChainDesc.BufferDesc.Height / ( clientRect.bottom - clientRect.top );
+					p.x = p.x * framework_config.swapChainDesc.Width / ( clientRect.right - clientRect.left );
+					p.y = p.y * framework_config.swapChainDesc.Height / ( clientRect.bottom - clientRect.top );
 					// Camera manipulation
 					m_camera.AddPointer( pointerId );
 				}
@@ -614,101 +674,107 @@ bool VolumetricAnimation::OnEvent( MSG* msg )
 			// Otherwise send it to the camera controls
 			m_camera.ProcessPointerFrames( pointerId, &pointerInfo );
 			if ( msg->message == WM_POINTERUP ) m_camera.RemovePointer( pointerId );
+			return true;
 		}
+	case WM_KEYDOWN:
+		if ( msg->lParam & ( 1 << 30 ) ) {
+			// Ignore repeats
+			return 0;
+		}
+		switch ( msg->wParam ) {
+			// toggle reuse cmdlist;
+		case 'R':
+			reuseCmdListToggled = true;
+			return 0;
+		} // Switch on key code
+		return 0;
 	}
 	return false;
 }
 
-void VolumetricAnimation::PopulateGraphicsCommandList()
+void VolumetricAnimation::PopulateGraphicsCommandList( UINT i )
 {
 	HRESULT hr;
 	// Command list allocators can only be reset when the associated 
 	// command lists have finished execution on the GPU; apps should use 
 	// fences to determine GPU execution progress.
-	V( m_graphicCmdAllocator->Reset() );
+	if ( !reuseCmdList )
+		V( m_graphicCmdAllocator->Reset() );
 
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
-	V( m_graphicCmdList->Reset( m_graphicCmdAllocator.Get(), m_pipelineState.Get() ) );
+	V( m_graphicCmdList[i]->Reset( m_graphicCmdAllocator.Get(), m_pipelineState.Get() ) );
 
 	{
-		GPU_PROFILE( m_graphicCmdList.Get(), "Rendering" );
-		XMMATRIX view = m_camera.View();
-		XMMATRIX proj = m_camera.Projection();
-
-		XMMATRIX world = XMMatrixIdentity();
-		m_pConstantBufferData->invWorld = XMMatrixInverse( nullptr, world );
-		m_pConstantBufferData->wvp = XMMatrixMultiply( XMMatrixMultiply( world, view ), proj );
-		XMStoreFloat4( &m_pConstantBufferData->viewPos, m_camera.Eye() );
-
-		memcpy( m_pCbvDataBegin, m_pConstantBufferData, sizeof( ConstantBuffer ) );
+		GPU_PROFILE( m_graphicCmdList[i].Get(), "Rendering" );
 
 		// Set necessary state.
-		m_graphicCmdList->SetGraphicsRootSignature( m_graphicsRootSignature.Get() );
+		m_graphicCmdList[i]->SetGraphicsRootSignature( m_graphicsRootSignature.Get() );
 
 		ID3D12DescriptorHeap* ppHeaps[] = { m_cbvsrvuavHeap.Get() };
-		m_graphicCmdList->SetDescriptorHeaps( _countof( ppHeaps ), ppHeaps );
+		m_graphicCmdList[i]->SetDescriptorHeaps( _countof( ppHeaps ), ppHeaps );
 
 		CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle( m_cbvsrvuavHeap->GetGPUDescriptorHandleForHeapStart(), RootParameterCBV, m_cbvsrvuavDescriptorSize );
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle( m_cbvsrvuavHeap->GetGPUDescriptorHandleForHeapStart(), RootParameterSRV, m_cbvsrvuavDescriptorSize );
 
-		m_graphicCmdList->SetGraphicsRootDescriptorTable( RootParameterCBV, cbvHandle );
-		m_graphicCmdList->SetGraphicsRootDescriptorTable( RootParameterSRV, srvHandle );
+		m_graphicCmdList[i]->SetGraphicsRootDescriptorTable( RootParameterCBV, cbvHandle );
+		m_graphicCmdList[i]->SetGraphicsRootDescriptorTable( RootParameterSRV, srvHandle );
 
-		m_graphicCmdList->RSSetViewports( 1, &m_viewport );
-		m_graphicCmdList->RSSetScissorRects( 1, &m_scissorRect );
+		m_graphicCmdList[i]->RSSetViewports( 1, &m_viewport );
+		m_graphicCmdList[i]->RSSetScissorRects( 1, &m_scissorRect );
 
 		// Indicate that the back buffer will be used as a render target.
 		D3D12_RESOURCE_BARRIER resourceBarriersBefore[] = {
-			CD3DX12_RESOURCE_BARRIER::Transition( m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET ),
+			CD3DX12_RESOURCE_BARRIER::Transition( m_renderTargets[i].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET ),
 			CD3DX12_RESOURCE_BARRIER::Transition( m_volumeBuffer.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE )
 		};
-		m_graphicCmdList->ResourceBarrier( 2, resourceBarriersBefore );
+		m_graphicCmdList[i]->ResourceBarrier( 2, resourceBarriersBefore );
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle( m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize );
-		m_graphicCmdList->OMSetRenderTargets( 1, &rtvHandle, FALSE, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart() );
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle( m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), i, m_rtvDescriptorSize );
+		m_graphicCmdList[i]->OMSetRenderTargets( 1, &rtvHandle, FALSE, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart() );
 
 		// Record commands.
 		const float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		m_graphicCmdList->ClearRenderTargetView( rtvHandle, clearColor, 0, nullptr );
-		m_graphicCmdList->ClearDepthStencilView( m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr );
-		m_graphicCmdList->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
-		m_graphicCmdList->IASetVertexBuffers( 0, 1, &m_vertexBufferView );
-		m_graphicCmdList->IASetIndexBuffer( &m_indexBufferView );
-		m_graphicCmdList->DrawIndexedInstanced( 36, 1, 0, 0, 0 );
+		m_graphicCmdList[i]->ClearRenderTargetView( rtvHandle, clearColor, 0, nullptr );
+		m_graphicCmdList[i]->ClearDepthStencilView( m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr );
+		m_graphicCmdList[i]->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+		m_graphicCmdList[i]->IASetVertexBuffers( 0, 1, &m_vertexBufferView );
+		m_graphicCmdList[i]->IASetIndexBuffer( &m_indexBufferView );
+		m_graphicCmdList[i]->DrawIndexedInstanced( 36, 1, 0, 0, 0 );
 
 		// Indicate that the back buffer will now be used to present.
 		D3D12_RESOURCE_BARRIER resourceBarriersAfter[] = {
-			CD3DX12_RESOURCE_BARRIER::Transition( m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT ),
+			CD3DX12_RESOURCE_BARRIER::Transition( m_renderTargets[i].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT ),
 			CD3DX12_RESOURCE_BARRIER::Transition( m_volumeBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS )
 		};
-		m_graphicCmdList->ResourceBarrier( 2, resourceBarriersAfter );
+		m_graphicCmdList[i]->ResourceBarrier( 2, resourceBarriersAfter );
 
 	}
 
-	V( m_graphicCmdList->Close() );
+	V( m_graphicCmdList[i]->Close() );
 }
 
-void VolumetricAnimation::PopulateComputeCommandList()
+void VolumetricAnimation::PopulateComputeCommandList( UINT i )
 {
 	HRESULT hr;
-	V( m_computeCmdAllocator->Reset() );
-	V( m_computeCmdList->Reset( m_computeCmdAllocator.Get(), m_computeState.Get() ) );
+	if ( !reuseCmdList )
+		V( m_computeCmdAllocator->Reset() );
+	V( m_computeCmdList[i]->Reset( m_computeCmdAllocator.Get(), m_computeState.Get() ) );
 	{
-		GPU_PROFILE( m_computeCmdList.Get(), "Processing" );
-		m_computeCmdList->SetPipelineState( m_computeState.Get() );
-		m_computeCmdList->SetComputeRootSignature( m_computeRootSignature.Get() );
+		GPU_PROFILE( m_computeCmdList[i].Get(), "Processing" );
+		m_computeCmdList[i]->SetPipelineState( m_computeState.Get() );
+		m_computeCmdList[i]->SetComputeRootSignature( m_computeRootSignature.Get() );
 		ID3D12DescriptorHeap* ppHeaps[] = { m_cbvsrvuavHeap.Get() };
-		m_computeCmdList->SetDescriptorHeaps( _countof( ppHeaps ), ppHeaps );
+		m_computeCmdList[i]->SetDescriptorHeaps( _countof( ppHeaps ), ppHeaps );
 		CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle( m_cbvsrvuavHeap->GetGPUDescriptorHandleForHeapStart(), RootParameterCBV, m_cbvsrvuavDescriptorSize );
 		CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle( m_cbvsrvuavHeap->GetGPUDescriptorHandleForHeapStart(), RootParameterUAV, m_cbvsrvuavDescriptorSize );
 
-		m_computeCmdList->SetComputeRootDescriptorTable( RootParameterCBV, cbvHandle );
-		m_computeCmdList->SetComputeRootDescriptorTable( RootParameterUAV, uavHandle );
-		m_computeCmdList->Dispatch( m_volumeWidth / THREAD_X, m_volumeHeight / THREAD_Y, m_volumeDepth / THREAD_Z );
+		m_computeCmdList[i]->SetComputeRootDescriptorTable( RootParameterCBV, cbvHandle );
+		m_computeCmdList[i]->SetComputeRootDescriptorTable( RootParameterUAV, uavHandle );
+		m_computeCmdList[i]->Dispatch( m_volumeWidth / THREAD_X, m_volumeHeight / THREAD_Y, m_volumeDepth / THREAD_Z );
 	}
-	m_computeCmdList->Close();
+	m_computeCmdList[i]->Close();
 }
 
 void VolumetricAnimation::WaitForGraphicsCmd()
@@ -719,9 +785,9 @@ void VolumetricAnimation::WaitForGraphicsCmd()
 	// illustrate how to use fences for efficient resource usage.
 
 	// Signal and increment the fence value.
-	const UINT64 fence = m_fenceValue;
+	const UINT64 fence = m_fenceValue[0];
 	V( framework_gfxBackbufferGfxCmdQueue->Signal( m_fence.Get(), fence ) );
-	m_fenceValue++;
+	m_fenceValue[0]++;
 
 	// Wait until the previous frame is finished.
 	if ( m_fence->GetCompletedValue() < fence )
@@ -736,14 +802,34 @@ void VolumetricAnimation::WaitForComputeCmd()
 	HRESULT hr;
 
 	// Signal and increment the fence value.
-	const UINT64 fence = m_fenceValue;
+	const UINT64 fence = m_fenceValue[0];
 	V( m_computeCmdQueue->Signal( m_fence.Get(), fence ) );
-	m_fenceValue++;
+	m_fenceValue[0]++;
 
 	// Wait until the previous frame is finished.
 	if ( m_fence->GetCompletedValue() < fence )
 	{
 		V( m_fence->SetEventOnCompletion( fence, m_fenceEvent ) );
 		WaitForSingleObject( m_fenceEvent, INFINITE );
+	}
+}
+
+void VolumetricAnimation::CreateReuseCmdLists()
+{
+	// Wait for previous GPU work to be done
+	// Since framework_gfxBackbufferGfxCmdQueue will start after m_computeCmdQueue
+	// so we can just wait for gfxBackbufferGFXCmdQueue
+	WaitForGraphicsCmd();
+
+	HRESULT hr;
+	// Reset the allocator both for gfx and compute
+	V( m_computeCmdAllocator->Reset() );
+	V( m_graphicCmdAllocator->Reset() );
+
+	// Create reusable cmdlist
+	for ( int i = 0; i < m_FrameCount; i++ )
+	{
+		PopulateComputeCommandList( i );
+		PopulateGraphicsCommandList( i );
 	}
 }

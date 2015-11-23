@@ -12,6 +12,10 @@ public:
 	VolumetricAnimation( UINT width, UINT height, std::wstring name );
 	~VolumetricAnimation();
 
+	// now in C++ 11 the following will be equivalent to add it to initialization list 
+	bool reuseCmdListToggled = false;
+	bool reuseCmdList = false;
+
 protected:
 	virtual void OnConfiguration( Settings* config );
 	virtual HRESULT OnInit(ID3D12Device* m_device);
@@ -34,7 +38,7 @@ private:
 	D3D12_RECT m_scissorRect;
 	ComPtr<ID3D12Resource> m_renderTargets[m_FrameCount];
 	ComPtr<ID3D12CommandAllocator> m_graphicCmdAllocator;
-	ComPtr<ID3D12GraphicsCommandList> m_graphicCmdList;
+	ComPtr<ID3D12GraphicsCommandList> m_graphicCmdList[m_FrameCount];
 	ComPtr<ID3D12RootSignature> m_graphicsRootSignature;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
@@ -47,7 +51,7 @@ private:
 	ComPtr<ID3D12RootSignature> m_computeRootSignature;
 	ComPtr<ID3D12CommandAllocator> m_computeCmdAllocator;
 	ComPtr<ID3D12CommandQueue> m_computeCmdQueue;
-	ComPtr<ID3D12GraphicsCommandList> m_computeCmdList;
+	ComPtr<ID3D12GraphicsCommandList> m_computeCmdList[m_FrameCount];
 	ComPtr<ID3D12PipelineState> m_computeState;
 
 	// App resources.
@@ -67,7 +71,7 @@ private:
 	UINT m_frameIndex;
 	HANDLE m_fenceEvent;
 	ComPtr<ID3D12Fence> m_fence;
-	UINT64 m_fenceValue;
+	UINT64 m_fenceValue[m_FrameCount];
 
 	UINT m_volumeWidth;
 	UINT m_volumeHeight;
@@ -87,8 +91,10 @@ private:
 	HRESULT LoadSizeDependentResource();
 	
 	void ResetCameraView();
-	void PopulateGraphicsCommandList();
-	void PopulateComputeCommandList();
+	void PopulateGraphicsCommandList(UINT i);
+	void PopulateComputeCommandList(UINT i);
 	void WaitForGraphicsCmd();
 	void WaitForComputeCmd();
+
+	void CreateReuseCmdLists();
 };
