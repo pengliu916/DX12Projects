@@ -22,10 +22,6 @@
 #define VOLUME_SIZE_SCALE 0.01f
 #define COLOR_COUNT 7
 
-#define DEFAULT_ORBIT_RADIUS 10.f
-#define MAX_ORBIT_RADIUS  100.f
-#define MIN_ORBIT_RADIUS  2.f
-
 // Do not modify below this line
 #if __cplusplus
 #define CBUFFER_ALIGN __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
@@ -46,34 +42,34 @@ typedef matrix XMMATRIX;
 #if __cplusplus || (__hlsl && STATIC_ARRAY)
 static XMINT4 shiftingColVals[] =
 {
-	XMINT4( 1, 0, 0, 0 ),
-	XMINT4( 0, 1, 0, 1 ),
-	XMINT4( 0, 0, 1, 2 ),
-	XMINT4( 1, 1, 0, 3 ),
-	XMINT4( 1, 0, 1, 4 ),
-	XMINT4( 0, 1, 1, 5 ),
-	XMINT4( 1, 1, 1, 6 ),
+    XMINT4( 1, 0, 0, 0 ),
+    XMINT4( 0, 1, 0, 1 ),
+    XMINT4( 0, 0, 1, 2 ),
+    XMINT4( 1, 1, 0, 3 ),
+    XMINT4( 1, 0, 1, 4 ),
+    XMINT4( 0, 1, 1, 5 ),
+    XMINT4( 1, 1, 1, 6 ),
 };
 #endif
 
 
-CBUFFER_ALIGN STRUCT(cbuffer) ConstantBuffer REGISTER(b0)
+CBUFFER_ALIGN STRUCT( cbuffer ) ConstantBuffer REGISTER( b0 )
 {
-	XMMATRIX wvp;
-	XMMATRIX invWorld;
-	XMFLOAT4 viewPos;
-	XMINT4 bgCol;
+    XMMATRIX wvp;
+    XMMATRIX invWorld;
+    XMFLOAT4 viewPos;
+    XMINT4 bgCol;
 #if !STATIC_ARRAY
-	XMINT4 shiftingColVals[COLOR_COUNT];
+    XMINT4 shiftingColVals[COLOR_COUNT];
 #endif // !STATIC_ARRAY
 #if __cplusplus
-	void * operator new(size_t i)
-	{
-		return _aligned_malloc( i, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT );
-	};
-	void operator delete( void* p )
-	{
-		_aligned_free( p );
-	};
+    void * operator new( size_t i )
+    {
+        return _aligned_malloc( i, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT );
+    };
+    void operator delete( void* p )
+    {
+        _aligned_free( p );
+    };
 #endif
 };

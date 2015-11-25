@@ -23,66 +23,40 @@
 using namespace DirectX;
 using namespace Microsoft::WRL;
 
-class DX12Framework
+namespace Core
 {
-public:
-	DX12Framework( UINT width, UINT height, std::wstring name );
-	virtual ~DX12Framework();
+    struct Settings
+    {
+        bool                    enableFullScreen;
+        bool                    warpDevice;
+        DXGI_SWAP_CHAIN_DESC1   swapChainDesc;
 
-	int Run( HINSTANCE hInstance, int nCmdShow );
-	void SetCustomWindowText( LPCWSTR text );
+        // Free to be changed after init
+        //Vsync
+        bool                    vsync;
+    };
 
-protected:
-	struct Settings
-	{
-		bool enableFullScreen;
-		bool warpDevice;
-		DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
-		
-		// Free to be changed after init
-		//Vsync
-		bool vsync;
+    class IDX12Framework
+    {
+    public:
+        // Framework interface for rendering loop
+        virtual void ParseCommandLineArgs();
+        virtual void OnInit(){};
+        virtual void OnConfiguration(){};
+        virtual HRESULT OnCreateResource() = 0;
+        virtual HRESULT OnSizeChanged() = 0;
+        virtual void OnUpdate() = 0;
+        virtual void OnRender() = 0;
+        virtual void OnDestroy() = 0;
+        virtual bool OnEvent( MSG* msg ) = 0;
+    };
 
-	};
+    int Run( IDX12Framework& application, HINSTANCE hInstance, int nCmdShow );
+    std::wstring GetAssetFullPath( LPCWSTR assetName );
 
-	// Framework interface for rendering loop
-	virtual void ParseCommandLineArgs();
-	virtual void OnConfiguration(Settings* config);
-	virtual HRESULT OnInit( ID3D12Device* device ) = 0;
-	virtual HRESULT OnSizeChanged() = 0;
-	virtual void OnUpdate() = 0;
-	virtual void OnRender() = 0;
-	virtual void OnDestroy() = 0;
-	virtual bool OnEvent( MSG* msg ) = 0;
-
-	std::wstring GetAssetFullPath( LPCWSTR assetName );
-	HRESULT ResizeBackBuffer();
-
-	// temp variable for display GPU timing
-	wchar_t strCustom[256];
-	
-	// Framework level gfx resource
-	ComPtr<ID3D12Device> framework_gfxDevice;
-	ComPtr<IDXGISwapChain3> framework_gfxSwapChain;
-	ComPtr<ID3D12CommandQueue> framework_gfxBackbufferGfxCmdQueue;
-	// gfx settings
-	Settings framework_config;
-	// Window handle.
-	HWND framework_hwnd;
-
-private:
-
-	// Root assets path.
-	std::wstring framework_assetsPath;
-	// Window title.
-	std::wstring framework_title;
-
-	static LRESULT CALLBACK WindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
-	void RenderLoop();
-	HRESULT FrameworkInit();
-	void FrameworkUpdate();
-	void FrameworkRender();
-	void FrameworkDestory();
-	void FrameworkResize();
-	void FrameworkHandleEvent( MSG* msg );
-};
+    extern Settings     g_config;           // gfx settings
+    extern HWND         g_hwnd;             // Window handle.
+    extern std::wstring g_title;
+    extern std::wstring g_assetsPath;       // Root assets path.   
+    extern wchar_t      g_strCustom[256];   // temp variable for display GPU timing
+}

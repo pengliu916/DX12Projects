@@ -1,36 +1,35 @@
 #pragma once
-#include <unordered_map>
-#include <string>
 
-using namespace std;
 using namespace DirectX;
 using namespace Microsoft::WRL;
 
-#define MAX_TIMER_NAME_LENGTH 64;
-#define MAX_TIMER_COUNT 512
 namespace GPU_Profiler
 {
-	HRESULT Init( ID3D12Device* device );
-	void ShutDown();
-	void StartTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx );
-	void StopTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx );
-	void ProcessAndReadback();
-	double ReadTimer( uint32_t idx, double* start = nullptr, double* stop = nullptr );
-	uint32_t GetTimingStr( uint32_t idx, char* outStr );
+    const uint16_t MAX_TIMER_NAME_LENGTH = 64;
+    const uint16_t MAX_TIMER_COUNT = 512;
+
+    HRESULT CreateResource();
+    void ShutDown();
+    void StartTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx );
+    void StopTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx );
+    void ProcessAndReadback();
+    double ReadTimer( uint32_t idx, double* start = nullptr, double* stop = nullptr );
+    uint32_t GetTimingStr( uint32_t idx, char* outStr );
 };
 
 class GPUProfileScope
 {
 public:
-	GPUProfileScope( ID3D12GraphicsCommandList* cmdlist, const char* szName );
-	~GPUProfileScope();
+    GPUProfileScope( ID3D12GraphicsCommandList* cmdlist, const char* szName );
+    ~GPUProfileScope();
 
-	// Prevent copying
-	GPUProfileScope( GPUProfileScope const& ) = delete;
-	GPUProfileScope& operator= ( GPUProfileScope const& ) = delete;
+    // Prevent copying
+    GPUProfileScope( GPUProfileScope const& ) = delete;
+    GPUProfileScope& operator= ( GPUProfileScope const& ) = delete;
 
-	ID3D12GraphicsCommandList* m_cmdlist;
-	uint32_t m_idx;
+private:
+    ID3D12GraphicsCommandList* m_cmdlist;
+    uint32_t m_idx;
 };
 
 // Anon macros, used to create anonymous variables in macros.

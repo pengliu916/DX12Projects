@@ -21,6 +21,11 @@
 #include <wrl.h>
 #include <atomic>
 
-typedef DirectX::XMFLOAT2 float2;
-typedef DirectX::XMFLOAT3 float3;
-typedef DirectX::XMFLOAT4 float4;
+#pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "Ninput.lib")
+
+#if defined(PROFILE) || defined(DEBUG)
+#pragma comment(lib, "dxguid.lib")
+#endif
