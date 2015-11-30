@@ -302,7 +302,9 @@ void RotatingCube::OnUpdate()
     // GPU_Profiler::Draw() have been implemented
 #ifndef RELEASE
     char temp[128];
+    GPU_Profiler::BeginReadBack();
     uint32_t n = GPU_Profiler::GetTimingStr( 0, temp );
+    GPU_Profiler::EndReadBack();
     swprintf( Core::g_strCustom, L"%hs", temp );
 #endif
 }
@@ -316,7 +318,7 @@ void RotatingCube::OnRender()
 
     // Execute the command list.
     ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    Graphics::g_cmdQueue->ExecuteCommandLists( _countof( ppCommandLists ), ppCommandLists );
+    Graphics::g_cmdListMngr.GetCommandQueue()->ExecuteCommandLists( _countof( ppCommandLists ), ppCommandLists );
 
     // Present the frame.
     V( Graphics::g_swapChain->Present( Core::g_config.vsync ? 1 : 0, 0 ) );
@@ -459,7 +461,7 @@ void RotatingCube::WaitForPreviousFrame()
 
     // Signal and increment the fence value.
     const uint64_t fence = m_fenceValue;
-    V( Graphics::g_cmdQueue->Signal( m_fence.Get(), fence ) );
+    V( Graphics::g_cmdListMngr.GetCommandQueue()->Signal( m_fence.Get(), fence ) );
     m_fenceValue++;
 
     // Wait until the previous frame is finished.

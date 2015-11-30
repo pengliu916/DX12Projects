@@ -448,7 +448,7 @@ HRESULT VolumetricAnimation::LoadAssets()
     // Close the command list and execute it to begin the initial GPU setup.
     VRET( m_graphicCmdList[0]->Close() );
     ID3D12CommandList* ppCommandLists[] = { m_graphicCmdList[0].Get() };
-    Graphics::g_cmdQueue->ExecuteCommandLists( _countof( ppCommandLists ), ppCommandLists );
+    Graphics::g_cmdListMngr.GetCommandQueue()->ExecuteCommandLists( _countof( ppCommandLists ), ppCommandLists );
 
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
     {
@@ -546,8 +546,10 @@ void VolumetricAnimation::OnUpdate()
     // GPU_Profiler::Draw() have been implemented
 #ifndef RELEASE
     char temp[128];
+    GPU_Profiler::BeginReadBack();
     uint32_t n = GPU_Profiler::GetTimingStr( 0, temp );
     GPU_Profiler::GetTimingStr( 1, temp + n );
+    GPU_Profiler::EndReadBack();
     swprintf( Core::g_strCustom, L"%hs", temp );
 #endif
 
@@ -591,7 +593,7 @@ void VolumetricAnimation::OnRender()
 
         PopulateGraphicsCommandList( m_frameIndex );
         ppGraphicsCommandLists[0] = m_graphicCmdList[m_frameIndex].Get();
-        Graphics::g_cmdQueue->ExecuteCommandLists( _countof( ppGraphicsCommandLists ), ppGraphicsCommandLists );
+        Graphics::g_cmdListMngr.GetCommandQueue()->ExecuteCommandLists( _countof( ppGraphicsCommandLists ), ppGraphicsCommandLists );
     }
     else
     {
@@ -601,7 +603,7 @@ void VolumetricAnimation::OnRender()
         WaitForComputeCmd();
 
         ppGraphicsCommandLists[0] = m_graphicCmdList[m_frameIndex].Get();
-        Graphics::g_cmdQueue->ExecuteCommandLists( _countof( ppGraphicsCommandLists ), ppGraphicsCommandLists );
+        Graphics::g_cmdListMngr.GetCommandQueue()->ExecuteCommandLists( _countof( ppGraphicsCommandLists ), ppGraphicsCommandLists );
     }
 
     DXGI_PRESENT_PARAMETERS param;
@@ -795,7 +797,7 @@ void VolumetricAnimation::WaitForGraphicsCmd()
 
     // Signal and increment the fence value.
     const UINT64 fence = m_fenceValue[0];
-    V( Graphics::g_cmdQueue->Signal( m_fence.Get(), fence ) );
+    V( Graphics::g_cmdListMngr.GetCommandQueue()->Signal( m_fence.Get(), fence ) );
     m_fenceValue[0]++;
 
     // Wait until the previous frame is finished.

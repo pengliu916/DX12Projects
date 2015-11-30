@@ -5,5 +5,6 @@
 #include "Camera.h"
 #include "StepTimer.h"
 #include "Utility.h"
+#include "CmdListMngr.h"
 #include "GPU_Profiler.h"
 #include "Graphics.h"

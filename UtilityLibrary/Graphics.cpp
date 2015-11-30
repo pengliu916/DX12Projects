@@ -1,5 +1,6 @@
 #include "LibraryHeader.h"
 
+#include "CmdListMngr.h"
 #include "Graphics.h"
 #include "DX12Framework.h"
 
@@ -46,8 +47,8 @@ namespace Graphics
     // Framework level gfx resource
     ComPtr<ID3D12Device>        g_device;
     ComPtr<IDXGISwapChain3>     g_swapChain;
-    ComPtr<ID3D12CommandQueue>  g_cmdQueue;
     ComPtr<IDXGIFactory4>       g_factory;
+    CmdListMngr                 g_cmdListMngr;
 
     void Init()
     {
@@ -68,6 +69,20 @@ namespace Graphics
         Core::g_config.swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
         Core::g_config.swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED; // Not used
         Core::g_config.swapChainDesc.Flags = 0;
+    }
+
+    void Shutdown()
+    {
+        g_cmdListMngr.Shutdown();
+
+#ifdef _DEBUG
+        ID3D12DebugDevice* debugInterface;
+        if ( SUCCEEDED( g_device.Get()->QueryInterface( &debugInterface ) ) )
+        {
+            debugInterface->ReportLiveDeviceObjects( D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL );
+            debugInterface->Release();
+        }
+#endif
     }
 
     HRESULT ResizeBackBuffer()
@@ -164,18 +179,17 @@ namespace Graphics
         }
 #endif
 
-        // Describe and create the graphics command queue which will update the backbuffer.
-        D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-        queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-        queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-        VRET( Graphics::g_device->CreateCommandQueue( &queueDesc, IID_PPV_ARGS( &Graphics::g_cmdQueue ) ) );
-        DXDebugName( Graphics::g_cmdQueue );
+#ifndef RELEASE
+        // Prevent the GPU from overclocking or underclocking to get consistent timings
+        g_device->SetStablePowerState( TRUE );
+#endif
+        g_cmdListMngr.CreateResource( g_device.Get() );
 
         ASSERT( Core::g_config.swapChainDesc.BufferCount <= DXGI_MAX_SWAP_CHAIN_BUFFERS );
         // Create the swap chain
         ComPtr<IDXGISwapChain1> swapChain;
         // Swap chain needs the queue so that it can force a flush on it.
-        VRET( Graphics::g_factory->CreateSwapChainForHwnd( Graphics::g_cmdQueue.Get(), Core::g_hwnd, &Core::g_config.swapChainDesc, NULL, NULL, &swapChain ) );
+        VRET( Graphics::g_factory->CreateSwapChainForHwnd( Graphics::g_cmdListMngr.GetCommandQueue(), Core::g_hwnd, &Core::g_config.swapChainDesc, NULL, NULL, &swapChain ) );
         VRET( swapChain.As( &Graphics::g_swapChain ) );
         DXDebugName( Graphics::g_swapChain );
 

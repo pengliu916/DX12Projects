@@ -6,4 +6,5 @@
 #include "StepTimer.h"
 #include "Utility.h"
 #include "GPU_Profiler.h"
+#include "CmdListMngr.h"
 #include "Graphics.h"

@@ -7,6 +7,7 @@
     <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="LibraryHeader.cpp" />
     <ClCompile Include="MsgPrinting.cpp" />
+    <ClCompile Include="CmdListMngr.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utility.h" />
@@ -18,5 +19,6 @@
     <ClInclude Include="LibraryHeader.h" />
     <ClInclude Include="MsgPrinting.h" />
     <ClInclude Include="StepTimer.h" />
+    <ClInclude Include="CmdListMngr.h" />
   </ItemGroup>
 </Project>

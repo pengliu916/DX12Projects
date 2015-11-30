@@ -182,6 +182,7 @@ namespace Core
     void FrameworkDestory( IDX12Framework& application )
     {
         application.OnDestroy();
+        GPU_Profiler::ShutDown();
         MsgPrinting::Destory();
     }
 

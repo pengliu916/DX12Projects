@@ -3,6 +3,7 @@
 #include "Utility.h"
 #include "DXHelper.h"
 #include "GPU_Profiler.h"
+#include "CmdListMngr.h"
 #include "Graphics.h"
 
 #include <unordered_map>
@@ -17,32 +18,14 @@ namespace{
     unordered_map<string, uint32_t>     gpuProfiler_timerNameIdxMap;
     string*                             gpuProfiler_timerNameArray;
 
-    ComPtr<ID3D12CommandAllocator>      gpuProfiler_cmdAllocator;
+    ID3D12CommandAllocator*             gpuProfiler_cmdAllocator;
+
     ComPtr<ID3D12GraphicsCommandList>   gpuProfiler_cmdList;
     ComPtr<ID3D12Resource>              gpuProfiler_readbackBuffer;
     ComPtr<ID3D12QueryHeap>             gpuProfiler_queryHeap;
-    ComPtr<ID3D12Fence>                 gpuProfiler_fence;
     uint64_t*                           gpuProfiler_timeStampBuffer;
 
     CRITICAL_SECTION                    gpuProfiler_critialSection;
-    uint64_t                            gpuProfiler_fenceValue;
-    uint64_t                            gpuProfiler_lastCompletedFenceValue;
-    HANDLE                              gpuProfiler_fenceEvent;
-
-    bool IsFenceCompleted( uint64_t fenceValue )
-    {
-        if ( fenceValue > gpuProfiler_lastCompletedFenceValue )
-            gpuProfiler_lastCompletedFenceValue = max( gpuProfiler_lastCompletedFenceValue, gpuProfiler_fence->GetCompletedValue() );
-        return fenceValue <= gpuProfiler_lastCompletedFenceValue;
-    }
-
-    void WaitForFence( uint64_t fenceValue )
-    {
-        if ( IsFenceCompleted( fenceValue ) ) return;
-        gpuProfiler_fence->SetEventOnCompletion( fenceValue, gpuProfiler_fenceEvent );
-        WaitForSingleObject( gpuProfiler_fenceEvent, INFINITE );
-        gpuProfiler_lastCompletedFenceValue = fenceValue;
-    }
 }
 
 HRESULT GPU_Profiler::CreateResource()
@@ -56,7 +39,7 @@ HRESULT GPU_Profiler::CreateResource()
     InitializeCriticalSection( &gpuProfiler_critialSection );
 
     uint64_t freq;
-    Graphics::g_cmdQueue->GetTimestampFrequency( &freq );
+    Graphics::g_cmdListMngr.GetCommandQueue()->GetTimestampFrequency( &freq );
     gpuProfiler_GPUTickDelta = 1000.0 / static_cast< double >( freq );
 
     D3D12_HEAP_PROPERTIES HeapProps;
@@ -90,52 +73,38 @@ HRESULT GPU_Profiler::CreateResource()
     VRET( Graphics::g_device->CreateQueryHeap( &QueryHeapDesc, IID_PPV_ARGS( &gpuProfiler_queryHeap ) ) );
     PRINTINFO( "QueryHeap created" );
     DXDebugName( gpuProfiler_queryHeap );
-
-    D3D12_RANGE range;
-    range.Begin = 0;
-    range.End = MAX_TIMER_COUNT * 2 * sizeof( uint64_t );
-    V( gpuProfiler_readbackBuffer->Map( 0, &range, reinterpret_cast< void** >( &gpuProfiler_timeStampBuffer ) ) );
-
-
-    VRET( Graphics::g_device->CreateCommandAllocator( D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS( &gpuProfiler_cmdAllocator ) ) );
-    DXDebugName( gpuProfiler_cmdAllocator );
-
-    // Create the graphics command list.
-    VRET( Graphics::g_device->CreateCommandList( 0, D3D12_COMMAND_LIST_TYPE_DIRECT, gpuProfiler_cmdAllocator.Get(), nullptr, IID_PPV_ARGS( &gpuProfiler_cmdList ) ) );
-    DXDebugName( gpuProfiler_cmdList );
-
-    // Close the commandlist since it's in record state after creation, and we have nothing to record yet
-    VRET( gpuProfiler_cmdList->Close() );
-
-    gpuProfiler_lastCompletedFenceValue = 0;
-    gpuProfiler_fenceValue = 0;
-    VRET( Graphics::g_device->CreateFence( gpuProfiler_fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS( &gpuProfiler_fence ) ) );
-    DXDebugName( gpuProfiler_fence );
-
-    // Create an event handle to use for frame synchronization.
-    gpuProfiler_fenceEvent = CreateEvent( nullptr, FALSE, FALSE, nullptr );
-    if ( gpuProfiler_fenceEvent == nullptr )
-        VRET( HRESULT_FROM_WIN32( GetLastError() ) );
+    
+    Graphics::g_cmdListMngr.CreateNewCommandList( &gpuProfiler_cmdList, &gpuProfiler_cmdAllocator );
+    gpuProfiler_cmdList->Close();
 
     return S_OK;
 }
 
 void GPU_Profiler::ShutDown()
 {
-    delete gpuProfiler_timerNameArray;
+    delete[] gpuProfiler_timerNameArray;
     DeleteCriticalSection( &gpuProfiler_critialSection );
 }
 
 void GPU_Profiler::ProcessAndReadback()
 {
-    WaitForFence( gpuProfiler_fenceValue );
-    gpuProfiler_cmdAllocator->Reset();
-    gpuProfiler_cmdList->Reset( gpuProfiler_cmdAllocator.Get(), nullptr );
+    gpuProfiler_cmdAllocator = Graphics::g_cmdListMngr.RequestAllocator();
+    gpuProfiler_cmdList->Reset( gpuProfiler_cmdAllocator, nullptr );
     gpuProfiler_cmdList->ResolveQueryData( gpuProfiler_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2 * gpuProfiler_timerCount, gpuProfiler_readbackBuffer.Get(), 0 );
     gpuProfiler_cmdList->Close();
-    ID3D12CommandList* ppCmdList[] = { gpuProfiler_cmdList.Get() };
-    Graphics::g_cmdQueue->ExecuteCommandLists( _countof( ppCmdList ), ppCmdList );
-    Graphics::g_cmdQueue->Signal( gpuProfiler_fence.Get(), ++gpuProfiler_fenceValue );
+    
+    uint64_t FenceValue = Graphics::g_cmdListMngr.ExecuteCommandList( gpuProfiler_cmdList.Get() );
+    Graphics::g_cmdListMngr.DiscardAllocator( FenceValue, gpuProfiler_cmdAllocator );
+}
+
+void GPU_Profiler::BeginReadBack()
+{
+    HRESULT hr;
+
+    D3D12_RANGE range;
+    range.Begin = 0;
+    range.End = MAX_TIMER_COUNT * 2 * sizeof( uint64_t );
+    V( gpuProfiler_readbackBuffer->Map( 0, &range, reinterpret_cast< void** >( &gpuProfiler_timeStampBuffer ) ) );
 }
 
 double GPU_Profiler::ReadTimer( uint32_t idx, double* start, double* stop )
@@ -145,11 +114,19 @@ double GPU_Profiler::ReadTimer( uint32_t idx, double* start, double* stop )
         PRINTERROR( "idx = %d is beyond the bounderay %d", idx, MAX_TIMER_COUNT );
         return 0;
     }
+
+
     double _start = gpuProfiler_timeStampBuffer[idx * 2] * gpuProfiler_GPUTickDelta;
     double _stop = gpuProfiler_timeStampBuffer[idx * 2 + 1] * gpuProfiler_GPUTickDelta;
     if ( start ) *start = _start;
     if ( stop ) *stop = _stop;
     return _stop - _start;
+}
+
+void GPU_Profiler::EndReadBack()
+{
+    D3D12_RANGE range = {};
+    gpuProfiler_readbackBuffer->Unmap( 0, &range);
 }
 
 uint32_t GPU_Profiler::GetTimingStr( uint32_t idx, char* outStr )
