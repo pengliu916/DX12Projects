@@ -10,6 +10,9 @@
 // Toggle between using octahedron animation or sphere animation
 #define SPHERE_VOLUME_ANIMATION 0
 
+// Toggle between using rootDescriptorTable or rootXXXView
+#define USING_DESCRIPTOR_TABLE 0
+
 // Params
 #define THREAD_X 8
 #define THREAD_Y 8

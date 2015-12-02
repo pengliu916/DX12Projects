@@ -129,10 +129,16 @@ HRESULT VolumetricAnimation::LoadAssets()
         ranges[0].Init( D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0 );
         ranges[1].Init( D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 );
         ranges[2].Init( D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0 );
+
+#if USING_DESCRIPTOR_TABLE
         rootParameters[RootParameterCBV].InitAsDescriptorTable( 1, &ranges[0], D3D12_SHADER_VISIBILITY_ALL );
         rootParameters[RootParameterSRV].InitAsDescriptorTable( 1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL );
         rootParameters[RootParameterUAV].InitAsDescriptorTable( 1, &ranges[2], D3D12_SHADER_VISIBILITY_ALL );
-
+#else
+        rootParameters[RootParameterCBV].InitAsConstantBufferView( 0 );
+        rootParameters[RootParameterSRV].InitAsShaderResourceView( 0 );
+        rootParameters[RootParameterUAV].InitAsUnorderedAccessView( 0 );
+#endif
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
         sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
@@ -729,9 +735,13 @@ void VolumetricAnimation::PopulateGraphicsCommandList( uint32_t i )
         CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle( m_cbvsrvuavHeap->GetGPUDescriptorHandleForHeapStart(), RootParameterCBV, m_cbvsrvuavDescriptorSize );
         CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle( m_cbvsrvuavHeap->GetGPUDescriptorHandleForHeapStart(), RootParameterSRV, m_cbvsrvuavDescriptorSize );
 
+#if USING_DESCRIPTOR_TABLE
         m_graphicCmdList[i]->SetGraphicsRootDescriptorTable( RootParameterCBV, cbvHandle );
         m_graphicCmdList[i]->SetGraphicsRootDescriptorTable( RootParameterSRV, srvHandle );
-
+#else
+        m_graphicCmdList[i]->SetGraphicsRootConstantBufferView( RootParameterCBV, m_constantBuffer->GetGPUVirtualAddress() );
+        m_graphicCmdList[i]->SetGraphicsRootShaderResourceView( RootParameterSRV, m_volumeBuffer->GetGPUVirtualAddress() );
+#endif
         m_graphicCmdList[i]->RSSetViewports( 1, &m_viewport );
         m_graphicCmdList[i]->RSSetScissorRects( 1, &m_scissorRect );
 
@@ -781,8 +791,14 @@ void VolumetricAnimation::PopulateComputeCommandList( uint32_t i )
         CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle( m_cbvsrvuavHeap->GetGPUDescriptorHandleForHeapStart(), RootParameterCBV, m_cbvsrvuavDescriptorSize );
         CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle( m_cbvsrvuavHeap->GetGPUDescriptorHandleForHeapStart(), RootParameterUAV, m_cbvsrvuavDescriptorSize );
 
+#if USING_DESCRIPTOR_TABLE
         m_computeCmdList[i]->SetComputeRootDescriptorTable( RootParameterCBV, cbvHandle );
         m_computeCmdList[i]->SetComputeRootDescriptorTable( RootParameterUAV, uavHandle );
+#else
+        m_computeCmdList[i]->SetComputeRootConstantBufferView( RootParameterCBV, m_constantBuffer->GetGPUVirtualAddress());
+        m_computeCmdList[i]->SetComputeRootUnorderedAccessView( RootParameterUAV, m_volumeBuffer->GetGPUVirtualAddress() );
+#endif
+
         m_computeCmdList[i]->Dispatch( m_volumeWidth / THREAD_X, m_volumeHeight / THREAD_Y, m_volumeDepth / THREAD_Z );
     }
     m_computeCmdList[i]->Close();
