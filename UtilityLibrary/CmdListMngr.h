@@ -11,6 +11,10 @@ public:
     CmdListMngr();
     ~CmdListMngr();
 
+    // Prevent copying
+    CmdListMngr( CmdListMngr const& ) = delete;
+    CmdListMngr& operator= ( CmdListMngr const& ) = delete;
+
     HRESULT CreateResource( ID3D12Device* pDevice );
     void Shutdown();
     uint64_t IncrementFence( void );
