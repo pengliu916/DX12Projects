@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DX12Framework.h"
+#include "DescriptorHeap.h"
 #include "Camera.h"
 
 using namespace DirectX;
@@ -35,9 +36,6 @@ private:
         RootParametersCount
     };
 
-    // now in C++ 11 the following will be equivalent to add it to initialization list 
-    bool                                reuseCmdListToggled = false;
-    bool                                reuseCmdList = false;
 
     uint32_t                            m_width;
     uint32_t                            m_height;
@@ -48,25 +46,26 @@ private:
 
     static const int                    m_FrameCount = 5;
 
+    ID3D12CommandAllocator*             m_gfxcmdAllocator;
+    ID3D12CommandAllocator*             m_cptcmdAllocator;
+
     // Pipeline objects.
     D3D12_VIEWPORT                      m_viewport;
     D3D12_RECT                          m_scissorRect;
     ComPtr<ID3D12Resource>              m_renderTargets[m_FrameCount];
-    ComPtr<ID3D12CommandAllocator>      m_graphicCmdAllocator;
-    ComPtr<ID3D12GraphicsCommandList>   m_graphicCmdList[m_FrameCount];
+    ComPtr<ID3D12GraphicsCommandList>   m_graphicCmdList;
     ComPtr<ID3D12RootSignature>         m_graphicsRootSignature;
-    ComPtr<ID3D12DescriptorHeap>        m_rtvHeap;
-    ComPtr<ID3D12DescriptorHeap>        m_dsvHeap;
-    ComPtr<ID3D12DescriptorHeap>        m_cbvsrvuavHeap;
     ComPtr<ID3D12PipelineState>         m_pipelineState;
-    uint32_t                            m_rtvDescriptorSize;
-    uint32_t                            m_cbvsrvuavDescriptorSize;
+    D3D12_CPU_DESCRIPTOR_HANDLE         m_rtvHandle[m_FrameCount];
+    D3D12_CPU_DESCRIPTOR_HANDLE         m_dsvHandle;
+
+    DescriptorHandle                    m_srvHandle;
+    DescriptorHandle                    m_cbvHandle;
+    DescriptorHandle                    m_uavHandle;
 
     // Compute objects.
     ComPtr<ID3D12RootSignature>         m_computeRootSignature;
-    ComPtr<ID3D12CommandAllocator>      m_computeCmdAllocator;
-    ComPtr<ID3D12CommandQueue>          m_computeCmdQueue;
-    ComPtr<ID3D12GraphicsCommandList>   m_computeCmdList[m_FrameCount];
+    ComPtr<ID3D12GraphicsCommandList>   m_computeCmdList;
     ComPtr<ID3D12PipelineState>         m_computeState;
 
     // App resources.
@@ -84,9 +83,6 @@ private:
 
     // Synchronization objects.
     uint32_t                            m_frameIndex;
-    HANDLE                              m_fenceEvent;
-    ComPtr<ID3D12Fence>                 m_fence;
-    UINT64                              m_fenceValue[m_FrameCount];
 
     uint32_t                            m_volumeWidth;
     uint32_t                            m_volumeHeight;
@@ -99,8 +95,4 @@ private:
     void ResetCameraView();
     void PopulateGraphicsCommandList( uint32_t i );
     void PopulateComputeCommandList( uint32_t i );
-    void WaitForGraphicsCmd();
-    void WaitForComputeCmd();
-
-    void CreateReuseCmdLists();
 };

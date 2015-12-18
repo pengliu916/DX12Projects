@@ -1,6 +1,7 @@
 #include "LibraryHeader.h"
 
 #include "CmdListMngr.h"
+#include "DescriptorHeap.h"
 #include "Graphics.h"
 #include "DX12Framework.h"
 
@@ -49,6 +50,10 @@ namespace Graphics
     ComPtr<IDXGISwapChain3>     g_swapChain;
     ComPtr<IDXGIFactory4>       g_factory;
     CmdListMngr                 g_cmdListMngr;
+    DescriptorHeap*             g_pRTVDescriptorHeap;
+    DescriptorHeap*             g_pDSVDescriptorHeap;
+    DescriptorHeap*             g_pSMPDescriptorHeap;
+    DescriptorHeap*             g_pCSUDescriptorHeap;
 
     void Init()
     {
@@ -74,6 +79,11 @@ namespace Graphics
     void Shutdown()
     {
         g_cmdListMngr.Shutdown();
+
+        delete g_pRTVDescriptorHeap;
+        delete g_pDSVDescriptorHeap;
+        delete g_pSMPDescriptorHeap;
+        delete g_pCSUDescriptorHeap;
 
 #ifdef _DEBUG
         ID3D12DebugDevice* debugInterface;
@@ -184,6 +194,10 @@ namespace Graphics
         g_device->SetStablePowerState( TRUE );
 #endif
         g_cmdListMngr.CreateResource( g_device.Get() );
+        g_pRTVDescriptorHeap = new DescriptorHeap( g_device.Get(), Core::NUM_RTV, D3D12_DESCRIPTOR_HEAP_TYPE_RTV );
+        g_pDSVDescriptorHeap = new DescriptorHeap( g_device.Get(), Core::NUM_DSV, D3D12_DESCRIPTOR_HEAP_TYPE_DSV );
+        g_pSMPDescriptorHeap = new DescriptorHeap( g_device.Get(), Core::NUM_SMP, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER );
+        g_pCSUDescriptorHeap = new DescriptorHeap( g_device.Get(), Core::NUM_CSU, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true );
 
         ASSERT( Core::g_config.swapChainDesc.BufferCount <= DXGI_MAX_SWAP_CHAIN_BUFFERS );
         // Create the swap chain

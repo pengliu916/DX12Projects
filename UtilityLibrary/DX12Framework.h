@@ -25,6 +25,11 @@ using namespace Microsoft::WRL;
 
 namespace Core
 {
+    const uint32_t          NUM_RTV = 64;
+    const uint32_t          NUM_DSV = 64;
+    const uint32_t          NUM_SMP = 128;
+    const uint32_t          NUM_CSU = 128;
+
     struct Settings
     {
         bool                    enableFullScreen;

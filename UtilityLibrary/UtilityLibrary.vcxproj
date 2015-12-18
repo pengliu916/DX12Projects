@@ -104,6 +104,7 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CmdListMngr.cpp" />
+    <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="DX12Framework.cpp" />
     <ClCompile Include="GPU_Profiler.cpp" />
     <ClCompile Include="Graphics.cpp" />
@@ -113,6 +114,7 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CmdListMngr.h" />
+    <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="DX12Framework.h" />
     <ClInclude Include="DXHelper.h" />
     <ClInclude Include="GPU_Profiler.h" />

@@ -1,9 +1,11 @@
 #pragma once
 
+
 using namespace Microsoft::WRL;
 using namespace DirectX;
 
 class CmdListMngr;
+class DescriptorHeap;
 
 namespace Graphics
 {
@@ -12,6 +14,10 @@ namespace Graphics
     extern ComPtr<IDXGISwapChain3>      g_swapChain;
     extern ComPtr<IDXGIFactory4>        g_factory;
     extern CmdListMngr                  g_cmdListMngr;
+    extern DescriptorHeap*              g_pRTVDescriptorHeap;
+    extern DescriptorHeap*              g_pDSVDescriptorHeap;
+    extern DescriptorHeap*              g_pSMPDescriptorHeap;
+    extern DescriptorHeap*              g_pCSUDescriptorHeap;
 
     void Init();
     void Shutdown();

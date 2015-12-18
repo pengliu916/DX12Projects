@@ -11,7 +11,7 @@
 #define SPHERE_VOLUME_ANIMATION 0
 
 // Toggle between using rootDescriptorTable or rootXXXView
-#define USING_DESCRIPTOR_TABLE 0
+#define USING_DESCRIPTOR_TABLE 1
 
 // Params
 #define THREAD_X 8

@@ -16,6 +16,9 @@
     <ClCompile Include="LibraryHeader.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="DescriptorHeap.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utility.h" />
@@ -34,6 +37,9 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="LibraryHeader.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="DescriptorHeap.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
