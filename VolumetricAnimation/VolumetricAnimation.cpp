@@ -5,7 +5,7 @@
 #include "VolumetricAnimation_SharedHeader.inl"
 
 VolumetricAnimation::VolumetricAnimation( uint32_t width, uint32_t height, std::wstring name ) :
-     m_viewport(), m_scissorRect()
+    m_viewport(), m_scissorRect(), m_TextRenderer( (float)width, (float)height )
 {
     m_volumeWidth = VOLUME_SIZE_X;
     m_volumeHeight = VOLUME_SIZE_Y;
@@ -57,6 +57,8 @@ HRESULT VolumetricAnimation::OnCreateResource()
     VRET( LoadPipeline( Graphics::g_device.Get() ) );
     VRET( LoadAssets() );
     VRET( LoadSizeDependentResource() );
+
+    VRET( m_TextRenderer.CreateResource() );
     return S_OK;
 }
 
@@ -539,6 +541,7 @@ HRESULT VolumetricAnimation::OnSizeChanged()
 
     VRET( LoadSizeDependentResource() );
 
+    m_TextRenderer.SetViewSize( (float)Core::g_config.swapChainDesc.Width, (float)Core::g_config.swapChainDesc.Height);
     // Reset the frame index to the current back buffer index.
     m_frameIndex = Graphics::g_swapChain->GetCurrentBackBufferIndex();
     return S_OK;
@@ -549,6 +552,7 @@ void VolumetricAnimation::OnDestroy()
 {
     // Wait for the GPU to be done with all resources.
     Graphics::g_cmdListMngr.IdleGPU();
+    m_TextRenderer.Release();
 }
 
 bool VolumetricAnimation::OnEvent( MSG* msg )
@@ -641,6 +645,14 @@ void VolumetricAnimation::PopulateGraphicsCommandList( uint32_t i )
         m_graphicCmdList->IASetVertexBuffers( 0, 1, &m_vertexBufferView );
         m_graphicCmdList->IASetIndexBuffer( &m_indexBufferView );
         m_graphicCmdList->DrawIndexedInstanced( 36, 1, 0, 0, 0 );
+
+
+        // Draw Text
+        m_TextRenderer.Begin( m_graphicCmdList.Get() );
+        m_TextRenderer.ResetCursor( 10, 20 );
+        m_TextRenderer.SetTextSize( 50.f );
+        m_TextRenderer.DrawString( "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n1234567890\n" );
+        m_TextRenderer.End();
 
         // Indicate that the back buffer will now be used to present.
         D3D12_RESOURCE_BARRIER resourceBarriersAfter[] = {

@@ -3,6 +3,7 @@
 #include "CmdListMngr.h"
 #include "DescriptorHeap.h"
 #include "Graphics.h"
+#include "TextRenderer.h"
 #include "DX12Framework.h"
 
 namespace
@@ -79,6 +80,8 @@ namespace Graphics
     void Shutdown()
     {
         g_cmdListMngr.Shutdown();
+
+        TextRenderer::ShutDown();
 
         delete g_pRTVDescriptorHeap;
         delete g_pDSVDescriptorHeap;
@@ -209,6 +212,10 @@ namespace Graphics
 
         // Enable or disable full screen
         if ( !Core::g_config.enableFullScreen ) VRET( Graphics::g_factory->MakeWindowAssociation( Core::g_hwnd, DXGI_MWA_NO_ALT_ENTER ) );
+        
+		// Create graphics resources for text renderer
+        VRET( TextRenderer::CreateResource() );
+        
         return S_OK;
     }
 
