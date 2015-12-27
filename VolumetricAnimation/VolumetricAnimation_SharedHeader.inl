@@ -33,37 +33,38 @@
 #endif
 
 #if __hlsl
-typedef matrix XMMATRIX;
-
 #define REGISTER(x) :register(x)
 #define STRUCT(x) x
 #else 
+typedef XMMATRIX    matrix;
+typedef XMINT4      int4;
+typedef XMFLOAT4    float4;
 #define REGISTER(x)
 #define STRUCT(x) struct
 #endif
 
 #if __cplusplus || (__hlsl && STATIC_ARRAY)
-static XMINT4 shiftingColVals[] =
+static int4 shiftingColVals[] =
 {
-    XMINT4( 1, 0, 0, 0 ),
-    XMINT4( 0, 1, 0, 1 ),
-    XMINT4( 0, 0, 1, 2 ),
-    XMINT4( 1, 1, 0, 3 ),
-    XMINT4( 1, 0, 1, 4 ),
-    XMINT4( 0, 1, 1, 5 ),
-    XMINT4( 1, 1, 1, 6 ),
+    int4( 1, 0, 0, 0 ),
+    int4( 0, 1, 0, 1 ),
+    int4( 0, 0, 1, 2 ),
+    int4( 1, 1, 0, 3 ),
+    int4( 1, 0, 1, 4 ),
+    int4( 0, 1, 1, 5 ),
+    int4( 1, 1, 1, 6 ),
 };
 #endif
 
 
 CBUFFER_ALIGN STRUCT( cbuffer ) ConstantBuffer REGISTER( b0 )
 {
-    XMMATRIX wvp;
-    XMMATRIX invWorld;
-    XMFLOAT4 viewPos;
-    XMINT4 bgCol;
+    matrix wvp;
+    matrix invWorld;
+    float4 viewPos;
+    int4 bgCol;
 #if !STATIC_ARRAY
-    XMINT4 shiftingColVals[COLOR_COUNT];
+    int4 shiftingColVals[COLOR_COUNT];
 #endif // !STATIC_ARRAY
 #if __cplusplus
     void * operator new( size_t i )

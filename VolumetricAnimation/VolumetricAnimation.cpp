@@ -649,8 +649,9 @@ void VolumetricAnimation::PopulateGraphicsCommandList( uint32_t i )
 
         // Draw Text
         m_TextRenderer.Begin( m_graphicCmdList.Get() );
+        m_TextRenderer.SetFont( L"xerox.fnt" );
         m_TextRenderer.ResetCursor( 10, 20 );
-        m_TextRenderer.SetTextSize( 50.f );
+        m_TextRenderer.SetTextSize( 20.f );
         m_TextRenderer.DrawString( "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n1234567890\n" );
         m_TextRenderer.End();
 

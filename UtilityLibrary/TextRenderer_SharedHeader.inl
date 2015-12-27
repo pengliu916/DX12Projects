@@ -6,13 +6,12 @@
 #endif
 
 #if __hlsl
-typedef float2  XMFLOAT2;
-typedef float4  XMFLOAT4;
-typedef uint    UINT;
-
 #define REGISTER(x) :register(x)
 #define STRUCT(x) x
 #else 
+typedef XMFLOAT2 float2;
+typedef XMFLOAT4 float4;
+typedef uint32_t uint;
 #define REGISTER(x)
 #define STRUCT(x) struct
 #endif
@@ -20,13 +19,13 @@ typedef uint    UINT;
 #if __cplusplus || ( __hlsl && Vertex_Shader )
 CBUFFER_ALIGN STRUCT( cbuffer ) VertexShaderParams REGISTER( b0 )
 {
-    XMFLOAT2    Scale;			// Scale and offset for transforming coordinates
-    XMFLOAT2    Offset;
-    XMFLOAT2    InvTexDim;		// Normalizes texture coordinates
-    float       TextSize;		// Height of text in destination pixels
+    float2      Scale;			// Scale and offset for transforming coordinates
+    float2      Offset;
+    float2      InvTexDim;		// Normalizes texture coordinates
+    float       TextHeight;		// Height of text in destination pixels
     float       TextScale;		// TextSize / FontHeight
     float       DstBorder;		// Extra space around a glyph measured in screen space coordinates
-    UINT        SrcBorder;		// Extra spacing around glyphs to avoid sampling neighboring glyphs
+    uint        SrcBorder;		// Extra spacing around glyphs to avoid sampling neighboring glyphs
 #if __cplusplus
     void * operator new( size_t i )
     {
@@ -43,7 +42,10 @@ CBUFFER_ALIGN STRUCT( cbuffer ) VertexShaderParams REGISTER( b0 )
 #if __cplusplus || ( __hlsl && Pixel_Shader )
 CBUFFER_ALIGN STRUCT( cbuffer ) PixelShaderParams REGISTER( b0 )
 {
-    XMFLOAT4    Color;
+    float4      Color;
+    float2      ShadowOffset;
+    float       ShadowHardness;
+    float       ShadowOpacity;
     float       HeightRange;	// The range of the signed distance field.
 #if __cplusplus
     void * operator new( size_t i )

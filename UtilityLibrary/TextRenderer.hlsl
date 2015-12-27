@@ -15,16 +15,16 @@ struct VS_OUTPUT
 
 VS_OUTPUT main( VS_INPUT input, uint VertID : SV_VertexID )
 {
-    const float2 xy0 = input.ScreenPos - DstBorder;
-    const float2 xy1 = input.ScreenPos + DstBorder + float2( TextScale * input.Glyph.z, TextSize );
-    const uint2 uv0 = input.Glyph.xy - SrcBorder;
-    const uint2 uv1 = input.Glyph.xy + SrcBorder + input.Glyph.zw;
+    const float2 xyBL = input.ScreenPos - DstBorder;
+    const float2 xyTR = input.ScreenPos + DstBorder + float2( TextScale * input.Glyph.z /*text width*/, TextHeight );
+    const uint2 uvTL = input.Glyph.xy - SrcBorder;
+    const uint2 uvBR = input.Glyph.xy + SrcBorder + input.Glyph.zw;
 
     float2 uv = float2( VertID & 1, ( VertID >> 1 ) & 1 );
 
     VS_OUTPUT output;
-    output.Pos = float4( lerp( xy0, xy1, uv ) * Scale + Offset, 0, 1 );
-    output.Tex = lerp( uv0, uv1, uv ) * InvTexDim;
+    output.Pos = float4( lerp( xyBL, xyTR, uv ) * Scale + Offset, 0, 1 );
+    output.Tex = lerp( uvTL, uvBR, uv ) * InvTexDim;
     return output;
 }
 #endif
@@ -39,13 +39,15 @@ struct PS_INPUT
     float2 uv : TEXCOORD0;
 };
 
-float GetAlpha( float2 uv )
+float GetAlpha( float2 uv, float range )
 {
-    return saturate( SignedDistanceFieldTex.Sample( LinearSampler, uv ) * HeightRange + 0.5 );
+    return saturate( SignedDistanceFieldTex.Sample( LinearSampler, uv ) * range + 0.5 );
 }
 
 float4 main( PS_INPUT Input ) : SV_Target
 {
-    return float4( Color.rgb, 1 ) * GetAlpha( Input.uv ) * Color.a;
+    float alpha1 = GetAlpha( Input.uv, HeightRange ) * Color.a;
+    float alpha2 = GetAlpha( Input.uv - ShadowOffset, HeightRange * ShadowHardness ) * ShadowOpacity * Color.a;
+    return float4( Color.rgb * alpha1, lerp( alpha2, 1, alpha1 ) );
 }
 #endif

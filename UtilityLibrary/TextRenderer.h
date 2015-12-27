@@ -117,6 +117,10 @@ public:
     float GetCursorX( void );
     float GetCursorY( void );
 
+    // Adjust shadow parameters.
+    void SetShadowOffset( float xPercent, float yPercent );
+    void SetShadowParams( float opacity, float width );
+
     // Set the color and transparency of text.
     void SetColor( XMFLOAT4 color );
 
@@ -170,10 +174,6 @@ private:
     DescriptorHandle                    m_dhCBVS;
     DescriptorHandle                    m_dhCBPS;
 
-    HANDLE                              textRender_fenceEvent;
-    uint64_t                            textRender_fenceValue;
-    uint64_t                            textRender_lastCompletedFenceValue;
-
     bool m_VSConstantBufferIsStale;	// Tracks when the CB needs updating
     bool m_PSConstantBufferIsStale;	// Tracks when the CB needs updating
     bool m_TextureIsStale;
@@ -183,6 +183,6 @@ private:
     float m_LineHeight;
     float m_ViewWidth;				// Width of the drawable area
     float m_ViewHeight;				// Height of the drawable area
-    BOOL m_HDR;
-
+    float m_ShadowOffsetX;			// Percentage of the font's TextSize should the shadow be offset
+    float m_ShadowOffsetY;			// Percentage of the font's TextSize should the shadow be offset
 };

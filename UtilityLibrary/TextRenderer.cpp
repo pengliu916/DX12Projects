@@ -7121,9 +7121,13 @@ namespace
 
 namespace TextRenderer
 {
-    ComPtr<ID3D12RootSignature> m_rootSignature;
+    // Graphics resource
+    ComPtr<ID3D12RootSignature> m_textRS;
     ComPtr<ID3D12PipelineState> m_textPSO;
-
+    // Fonts loaded
+    unordered_map< wstring, unique_ptr<Font> > LoadedFonts;
+    
+    // For Font class
     Font::Font()
     {
         m_NormalizeXCoord = 0.0f;
@@ -7185,7 +7189,6 @@ namespace TextRenderer
         return true;
     }
 
-
     const Font::Glyph* Font::GetGlyph( wchar_t ch ) const
     {
         auto it = m_Dictionary.find( ch );
@@ -7213,7 +7216,6 @@ namespace TextRenderer
     float Font::GetAntialiasRange( float size ) const { return DirectX::XMMax( 1.0f, size * m_AntialiasRange ); }
 
 
-    unordered_map< wstring, unique_ptr<Font> > LoadedFonts;
 
     HRESULT Init()
     {
@@ -7230,7 +7232,7 @@ namespace TextRenderer
         if ( filename == L"default" )
             newFont->LoadFromBinary( L"default", g_pconsola24, sizeof( g_pconsola24 ) );
         else
-            newFont->Load( L"Fonts/" + filename + L".fnt" );
+            newFont->Load( filename );
         LoadedFonts[filename].reset( newFont );
         return newFont;
     }
@@ -7343,10 +7345,10 @@ namespace TextRenderer
             rootParams[2].InitAsDescriptorTable( 1, &range, D3D12_SHADER_VISIBILITY_PIXEL );
 
             D3D12_STATIC_SAMPLER_DESC sampler = {};
-            sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-            sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-            sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-            sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+            sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+            sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+            sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+            sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
             sampler.MipLODBias = 0;
             sampler.MaxAnisotropy = 0;
             sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
@@ -7365,8 +7367,8 @@ namespace TextRenderer
             V( D3D12SerializeRootSignature( &rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error ) );
             if ( error ) PRINTERROR( reinterpret_cast< const char* >( error->GetBufferPointer() ) );
 
-            VRET( Graphics::g_device->CreateRootSignature( 0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS( &m_rootSignature ) ) );
-            DXDebugName( m_rootSignature );
+            VRET( Graphics::g_device->CreateRootSignature( 0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS( &m_textRS ) ) );
+            DXDebugName( m_textRS );
         }
 
         // Create pipeline state object along with input layout shaders
@@ -7402,7 +7404,7 @@ namespace TextRenderer
 
             D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
             psoDesc.InputLayout = { vertElem,_countof( vertElem ) };
-            psoDesc.pRootSignature = m_rootSignature.Get();
+            psoDesc.pRootSignature = m_textRS.Get();
             psoDesc.VS = { reinterpret_cast< uint8_t* >( vertexShader->GetBufferPointer() ),vertexShader->GetBufferSize() };
             psoDesc.PS = { reinterpret_cast< uint8_t* >( pixelShader->GetBufferPointer() ),pixelShader->GetBufferSize() };
             psoDesc.RasterizerState = rasterDesc;
@@ -7426,7 +7428,6 @@ namespace TextRenderer
 
 TextContext::TextContext( float ViewWidth, float ViewHeight )
 {
-    m_HDR = FALSE;
     m_CurrentFont = nullptr;
    
     SetViewSize( ViewWidth, ViewHeight );
@@ -7495,6 +7496,10 @@ void TextContext::Release()
 void TextContext::ResetSettings( void )
 {
     ResetCursor( 0.0f, 0.0f );
+    m_ShadowOffsetX = 0.05f;
+    m_ShadowOffsetY = 0.05f;
+    m_PSParams.ShadowHardness = 0.5f;
+    m_PSParams.ShadowOpacity = 1.0f;
     m_PSParams.Color = XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f );
 
     m_VSConstantBufferIsStale = true;
@@ -7520,6 +7525,22 @@ void TextContext::ResetCursor( float x, float y )
     m_TextPosY = y;
 }
 
+void TextContext::SetShadowOffset( float xPercent, float yPercent )
+{
+    m_ShadowOffsetX = xPercent;
+    m_ShadowOffsetY = yPercent;
+    m_PSParams.ShadowOffset.x = m_CurrentFont->GetHeight() * m_ShadowOffsetX * m_VSParams.InvTexDim.x;
+    m_PSParams.ShadowOffset.y = m_CurrentFont->GetHeight() * m_ShadowOffsetY * m_VSParams.InvTexDim.y;
+    m_PSConstantBufferIsStale = true;
+}
+
+void TextContext::SetShadowParams( float opacity, float width )
+{
+    m_PSParams.ShadowHardness = 1.0f / width;
+    m_PSParams.ShadowOpacity = opacity;
+    m_PSConstantBufferIsStale = true;
+}
+
 void TextContext::SetColor( XMFLOAT4 c )
 {
     m_PSParams.Color = c;
@@ -7537,7 +7558,7 @@ void TextContext::Begin( ID3D12GraphicsCommandList* cmdList )
 
     ResetSettings();
 
-    m_cmdList->SetGraphicsRootSignature( TextRenderer::m_rootSignature.Get() );
+    m_cmdList->SetGraphicsRootSignature( TextRenderer::m_textRS.Get() );
     m_cmdList->SetPipelineState( TextRenderer::m_textPSO.Get() );
     m_cmdList->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP );
 }
@@ -7558,16 +7579,18 @@ void TextContext::SetFont( const wstring& fontName, float size )
 
     // Check to see if a new size was specified
     if ( size > 0.0f )
-        m_VSParams.TextSize = size;
+        m_VSParams.TextHeight = size;
 
     // Update constants directly tied to the font or the font size
-    m_LineHeight = NextFont->GetVerticalSpacing( m_VSParams.TextSize );
+    m_LineHeight = NextFont->GetVerticalSpacing( m_VSParams.TextHeight );
     m_VSParams.InvTexDim.x = m_CurrentFont->GetXNormalizationFactor();
     m_VSParams.InvTexDim.y = m_CurrentFont->GetYNormalizationFactor();
-    m_VSParams.TextScale = m_VSParams.TextSize / m_CurrentFont->GetHeight();
+    m_VSParams.TextScale = m_VSParams.TextHeight / m_CurrentFont->GetHeight();
     m_VSParams.DstBorder = m_CurrentFont->GetBorderSize() * m_VSParams.TextScale;
     m_VSParams.SrcBorder = m_CurrentFont->GetBorderSize();
-    m_PSParams.HeightRange = m_CurrentFont->GetAntialiasRange( m_VSParams.TextSize );
+    m_PSParams.ShadowOffset.x = m_CurrentFont->GetHeight() * m_ShadowOffsetX * m_VSParams.InvTexDim.x;
+    m_PSParams.ShadowOffset.y = m_CurrentFont->GetHeight() * m_ShadowOffsetY * m_VSParams.InvTexDim.y;
+    m_PSParams.HeightRange = m_CurrentFont->GetAntialiasRange( m_VSParams.TextHeight );
     m_VSConstantBufferIsStale = true;
     m_PSConstantBufferIsStale = true;
     m_TextureIsStale = true;
@@ -7575,16 +7598,16 @@ void TextContext::SetFont( const wstring& fontName, float size )
 
 void TextContext::SetTextSize( float size )
 {
-    if ( m_VSParams.TextSize == size )
+    if ( m_VSParams.TextHeight == size )
         return;
 
-    m_VSParams.TextSize = size;
+    m_VSParams.TextHeight = size;
     m_VSConstantBufferIsStale = true;
 
     if ( m_CurrentFont != nullptr )
     {
-        m_PSParams.HeightRange = m_CurrentFont->GetAntialiasRange( m_VSParams.TextSize );
-        m_VSParams.TextScale = m_VSParams.TextSize / m_CurrentFont->GetHeight();
+        m_PSParams.HeightRange = m_CurrentFont->GetAntialiasRange( m_VSParams.TextHeight );
+        m_VSParams.TextScale = m_VSParams.TextHeight / m_CurrentFont->GetHeight();
         m_VSParams.DstBorder = m_CurrentFont->GetBorderSize() * m_VSParams.TextScale;
         m_PSConstantBufferIsStale = true;
         m_LineHeight = m_CurrentFont->GetVerticalSpacing( size );

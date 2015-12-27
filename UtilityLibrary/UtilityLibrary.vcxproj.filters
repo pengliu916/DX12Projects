@@ -19,6 +19,7 @@
     <ClCompile Include="DescriptorHeap.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="TextRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utility.h" />
@@ -42,10 +43,15 @@
     <ClInclude Include="DescriptorHeap.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="TextRenderer.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">
       <UniqueIdentifier>{10c286d5-ccfa-49de-9a3a-ba874472b961}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="TextRenderer.hlsl" />
+    <CustomBuild Include="TextRenderer_SharedHeader.inl" />
   </ItemGroup>
 </Project>
