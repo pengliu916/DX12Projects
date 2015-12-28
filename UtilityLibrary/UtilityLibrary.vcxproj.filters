@@ -20,6 +20,9 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="TextRenderer.cpp" />
+    <ClCompile Include="LinearAllocator.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utility.h" />
@@ -44,6 +47,9 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="TextRenderer.h" />
+    <ClInclude Include="LinearAllocator.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">

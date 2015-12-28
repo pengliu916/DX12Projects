@@ -12,7 +12,6 @@ using namespace std;
 namespace TextRenderer
 {
 #include "TextRenderer_SharedHeader.inl"
-
     struct Texture
     {
         DescriptorHandle m_srvHandle;
@@ -64,7 +63,7 @@ namespace TextRenderer
         float GetXNormalizationFactor() const;
         float GetYNormalizationFactor() const;
         float GetAntialiasRange( float ) const;
-       
+
     private:
         float                           m_NormalizeXCoord;
         float                           m_NormalizeYCoord;
@@ -82,19 +81,14 @@ namespace TextRenderer
 class TextContext
 {
 public:
-    TextContext( float canvasWidth, float canvasHeight );
-
-    HRESULT CreateResource();
-
-    void Release();
+    TextContext( float canvasWidth = 1920.f, float canvasHeight = 1080.f );
 
     // Put settings back to the defaults.
     void ResetSettings( void );
 
-    //
+    //====================================================================
     // Control various text properties
-    //
-
+    //====================================================================
     // Choose a font from the Fonts folder.  Previously loaded fonts are cached in memory.
     void SetFont( const std::wstring& fontName, float TextSize = 0.0f );
 
@@ -127,10 +121,9 @@ public:
     // Get the amount to advance the Y position to begin a new line
     float GetVerticalSpacing( void );
 
-    //
+    //====================================================================
     // Rendering commands
-    //
-
+    //====================================================================
     // Begin and end drawing commands
     void Begin( ID3D12GraphicsCommandList* cmdList );
     void End( void );
@@ -155,24 +148,11 @@ private:
 
     UINT FillVertexBuffer( TextVert volatile* verts, const char* str, size_t stride, size_t slen );
 
-    const uint64_t                      MAX_VB_SIZE = 0x200000;
     TextRenderer::Font*                 m_CurrentFont;
     TextRenderer::VertexShaderParams    m_VSParams;
     TextRenderer::PixelShaderParams     m_PSParams;
 
-    TextRenderer::VertexShaderParams*   m_MappedCBVS;
-    TextRenderer::PixelShaderParams*    m_MappedCBPS;
-
     ID3D12GraphicsCommandList*          m_cmdList;
-
-    ComPtr<ID3D12Resource>              m_cbVS;
-    ComPtr<ID3D12Resource>              m_cbPS;
-    ComPtr<ID3D12Resource>              m_vb;
-
-    TextVert*                           m_vbData;
-
-    DescriptorHandle                    m_dhCBVS;
-    DescriptorHandle                    m_dhCBPS;
 
     bool m_VSConstantBufferIsStale;	// Tracks when the CB needs updating
     bool m_PSConstantBufferIsStale;	// Tracks when the CB needs updating

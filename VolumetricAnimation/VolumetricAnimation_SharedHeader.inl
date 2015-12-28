@@ -56,7 +56,6 @@ static int4 shiftingColVals[] =
 };
 #endif
 
-
 CBUFFER_ALIGN STRUCT( cbuffer ) ConstantBuffer REGISTER( b0 )
 {
     matrix wvp;

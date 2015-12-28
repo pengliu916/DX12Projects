@@ -6,6 +6,7 @@
 #include "GPU_Profiler.h"
 #include "Graphics.h"
 #include "CmdListMngr.h"
+#include "LinearAllocator.h"
 #include "DX12Framework.h"
 
 #include <unordered_map>
@@ -7126,7 +7127,7 @@ namespace TextRenderer
     ComPtr<ID3D12PipelineState> m_textPSO;
     // Fonts loaded
     unordered_map< wstring, unique_ptr<Font> > LoadedFonts;
-    
+
     // For Font class
     Font::Font()
     {
@@ -7429,68 +7430,12 @@ namespace TextRenderer
 TextContext::TextContext( float ViewWidth, float ViewHeight )
 {
     m_CurrentFont = nullptr;
-   
+
     SetViewSize( ViewWidth, ViewHeight );
 
     // The font texture dimensions are still unknown
     m_VSParams.InvTexDim = XMFLOAT2( 1.0f, 1.0f );
 
-}
-
-HRESULT TextContext::CreateResource()
-{
-    HRESULT hr;
-    ResetSettings();
-
-    // Create the vertex buffer
-    {
-        VRET( Graphics::g_device->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ), D3D12_HEAP_FLAG_NONE,
-                                                           &CD3DX12_RESOURCE_DESC::Buffer( MAX_VB_SIZE ), D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                           nullptr, IID_PPV_ARGS( &m_vb ) ) );
-        DXDebugName( m_vb );
-
-        CD3DX12_RANGE readRange( 0, 0 );		// We do not intend to read from this resource on the CPU.
-        VRET( m_vb->Map( 0, &readRange, reinterpret_cast< void** >( &m_vbData ) ) );
-    }
-
-    // Create the constant buffer
-    {
-        VRET( Graphics::g_device->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ), D3D12_HEAP_FLAG_NONE,
-                                                           &CD3DX12_RESOURCE_DESC::Buffer( sizeof( m_VSParams ) ), D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                           nullptr, IID_PPV_ARGS( &m_cbVS ) ) );
-        DXDebugName( m_cbVS );
-        VRET( Graphics::g_device->CreateCommittedResource( &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ), D3D12_HEAP_FLAG_NONE,
-                                                           &CD3DX12_RESOURCE_DESC::Buffer( sizeof( m_PSParams ) ), D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                           nullptr, IID_PPV_ARGS( &m_cbPS ) ) );
-        DXDebugName( m_cbPS );
-
-        // Describe and create a constant buffer view.
-        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-        cbvDesc.BufferLocation = m_cbVS->GetGPUVirtualAddress();
-        cbvDesc.SizeInBytes = ( uint32_t ) AlignUp( sizeof( m_VSParams ), 16 );	// CB size is required to be 16-byte aligned.
-        m_dhCBVS = Graphics::g_pCSUDescriptorHeap->Append();
-        Graphics::g_device->CreateConstantBufferView( &cbvDesc, m_dhCBVS.GetCPUHandle() );
-
-        cbvDesc.BufferLocation = m_cbPS->GetGPUVirtualAddress();
-        cbvDesc.SizeInBytes = ( uint32_t ) AlignUp( sizeof( m_PSParams ), 16 );	// CB size is required to be 16-byte aligned.
-        m_dhCBPS = Graphics::g_pCSUDescriptorHeap->Append();
-        Graphics::g_device->CreateConstantBufferView( &cbvDesc, m_dhCBPS.GetCPUHandle() );
-
-        // Initialize and map the constant buffers. We don't unmap this until the
-        // app closes. Keeping things mapped for the lifetime of the resource is okay.
-        CD3DX12_RANGE readRange( 0, 0 );		// We do not intend to read from this resource on the CPU.
-        VRET( m_cbVS->Map( 0, &readRange, reinterpret_cast< void** >( &m_MappedCBVS ) ) );
-        VRET( m_cbPS->Map( 0, &readRange, reinterpret_cast< void** >( &m_MappedCBPS ) ) );
-    }
-    return S_OK;
-}
-
-void TextContext::Release()
-{
-    m_cbVS->Unmap( 0, nullptr );
-    m_cbPS->Unmap( 0, nullptr );
-
-    m_vb->Unmap( 0, nullptr );
 }
 
 void TextContext::ResetSettings( void )
@@ -7647,16 +7592,18 @@ void TextContext::SetRenderState( void )
     if ( m_VSConstantBufferIsStale )
     {
         ASSERT( nullptr != &m_VSParams && IsAligned( &m_VSParams, 16 ) );
-        memcpy( m_MappedCBVS, &m_VSParams, sizeof( m_VSParams ) );
-        m_cmdList->SetGraphicsRootConstantBufferView( 0, m_cbVS->GetGPUVirtualAddress() );
+        DynAlloc cb = Graphics::g_CpuLinearAllocator.Allocate( sizeof( m_VSParams ) );
+        memcpy( cb.m_pData, &m_VSParams, sizeof( m_VSParams ) );
+        m_cmdList->SetGraphicsRootConstantBufferView( 0, cb.m_GpuVirtualAddr );
         m_VSConstantBufferIsStale = false;
     }
 
     if ( m_PSConstantBufferIsStale )
     {
         ASSERT( nullptr != &m_PSParams && IsAligned( &m_PSParams, 16 ) );
-        memcpy( m_MappedCBPS, &m_PSParams, sizeof( m_PSParams ) );
-        m_cmdList->SetGraphicsRootConstantBufferView( 1, m_cbPS->GetGPUVirtualAddress() );
+        DynAlloc cb = Graphics::g_CpuLinearAllocator.Allocate( sizeof( m_PSParams ) );
+        memcpy( cb.m_pData, &m_PSParams, sizeof( m_PSParams ) );
+        m_cmdList->SetGraphicsRootConstantBufferView( 1, cb.m_GpuVirtualAddr );
         m_PSConstantBufferIsStale = false;
     }
 
@@ -7727,7 +7674,6 @@ void TextContext::DrawString( const std::wstring& str )
     SetRenderState();
 
     uint64_t size = ( str.size() + 1 ) * 16;
-    ASSERT( size < MAX_VB_SIZE );
     void* stackMem = _malloca( size );
     TextVert* vbPtr = AlignUp( ( TextVert* ) stackMem, 16 );
     UINT primCount = FillVertexBuffer( vbPtr, ( char* ) str.c_str(), 2, str.size() );
@@ -7736,10 +7682,12 @@ void TextContext::DrawString( const std::wstring& str )
     {
         ASSERT( vbPtr != nullptr && IsAligned( vbPtr, 16 ) );
         size_t BufferSize = AlignUp( primCount * sizeof( TextVert ), 16 );
-        memcpy( m_vbData, vbPtr, BufferSize );
+
+        DynAlloc vb = Graphics::g_CpuLinearAllocator.Allocate( BufferSize );
+        memcpy( vb.m_pData, vbPtr, BufferSize );
 
         D3D12_VERTEX_BUFFER_VIEW VBView;
-        VBView.BufferLocation = m_vb->GetGPUVirtualAddress();
+        VBView.BufferLocation = vb.m_GpuVirtualAddr;
         VBView.SizeInBytes = ( UINT ) BufferSize;
         VBView.StrideInBytes = ( UINT ) sizeof( TextVert );
 
@@ -7755,7 +7703,6 @@ void TextContext::DrawString( const std::string& str )
     SetRenderState();
 
     uint64_t size = ( str.size() + 1 ) * 16;
-    ASSERT( size < MAX_VB_SIZE );
     void* stackMem = _malloca( size );
     TextVert* vbPtr = AlignUp( ( TextVert* ) stackMem, 16 );
     UINT primCount = FillVertexBuffer( vbPtr, ( char* ) str.c_str(), 1, str.size() );
@@ -7764,10 +7711,12 @@ void TextContext::DrawString( const std::string& str )
     {
         ASSERT( vbPtr != nullptr && IsAligned( vbPtr, 16 ) );
         size_t BufferSize = AlignUp( primCount * sizeof( TextVert ), 16 );
-        memcpy( m_vbData, vbPtr, BufferSize );
+
+        DynAlloc vb = Graphics::g_CpuLinearAllocator.Allocate( BufferSize );
+        memcpy( vb.m_pData, vbPtr, BufferSize );
 
         D3D12_VERTEX_BUFFER_VIEW VBView;
-        VBView.BufferLocation = m_vb->GetGPUVirtualAddress();
+        VBView.BufferLocation = vb.m_GpuVirtualAddr;
         VBView.SizeInBytes = ( UINT ) BufferSize;
         VBView.StrideInBytes = ( UINT ) sizeof( TextVert );
 

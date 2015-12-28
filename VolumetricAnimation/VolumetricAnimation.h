@@ -29,7 +29,7 @@ private:
     };
 
     // Indices in the root parameter table.
-    enum RootParameters : uint32_t
+    enum RootParameters : uint8_t
     {
         RootParameterCBV = 0,
         RootParameterSRV,
@@ -77,8 +77,6 @@ private:
     ComPtr<ID3D12Resource>              m_indexBuffer;
     D3D12_INDEX_BUFFER_VIEW             m_indexBufferView;
     ComPtr<ID3D12Resource>              m_volumeBuffer;
-
-    TextContext                         m_TextRenderer;
 
     OrbitCamera                         m_camera;
     struct ConstantBuffer*              m_pConstantBufferData;

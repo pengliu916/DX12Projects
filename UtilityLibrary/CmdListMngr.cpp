@@ -20,11 +20,11 @@ CmdListMngr::~CmdListMngr()
 void CmdListMngr::Shutdown()
 {
     if ( m_CommandQueue == nullptr ) return;
-    
+
     CloseHandle( m_FenceEventHandle );
-    
+
     for ( size_t i = 0; i < m_AllocatorPool.size(); ++i ) m_AllocatorPool[i]->Release();
-    
+
     m_pFence->Release();
     m_CommandQueue->Release();
     m_CommandQueue = nullptr;

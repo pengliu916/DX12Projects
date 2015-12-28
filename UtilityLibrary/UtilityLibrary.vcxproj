@@ -109,6 +109,7 @@
     <ClCompile Include="GPU_Profiler.cpp" />
     <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="LibraryHeader.cpp" />
+    <ClCompile Include="LinearAllocator.cpp" />
     <ClCompile Include="MsgPrinting.cpp" />
     <ClCompile Include="TextRenderer.cpp" />
   </ItemGroup>
@@ -121,6 +122,7 @@
     <ClInclude Include="GPU_Profiler.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="LibraryHeader.h" />
+    <ClInclude Include="LinearAllocator.h" />
     <ClInclude Include="MsgPrinting.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="TextRenderer.h" />

@@ -5,7 +5,7 @@
 #include "VolumetricAnimation_SharedHeader.inl"
 
 VolumetricAnimation::VolumetricAnimation( uint32_t width, uint32_t height, std::wstring name ) :
-    m_viewport(), m_scissorRect(), m_TextRenderer( (float)width, (float)height )
+    m_viewport(), m_scissorRect()
 {
     m_volumeWidth = VOLUME_SIZE_X;
     m_volumeHeight = VOLUME_SIZE_Y;
@@ -58,7 +58,6 @@ HRESULT VolumetricAnimation::OnCreateResource()
     VRET( LoadAssets() );
     VRET( LoadSizeDependentResource() );
 
-    VRET( m_TextRenderer.CreateResource() );
     return S_OK;
 }
 
@@ -67,7 +66,7 @@ HRESULT VolumetricAnimation::LoadPipeline( ID3D12Device* m_device )
 {
     m_frameIndex = Graphics::g_swapChain->GetCurrentBackBufferIndex();
 
-    for ( uint32_t i = 0; i < m_FrameCount; i++ )
+    for ( uint8_t i = 0; i < m_FrameCount; i++ )
         m_rtvHandle[i] = Graphics::g_pRTVDescriptorHeap->Append().GetCPUHandle();
 
     m_dsvHandle = Graphics::g_pDSVDescriptorHeap->Append().GetCPUHandle();
@@ -208,7 +207,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 
     // Create the volumeBuffer.
     {
-        uint32_t volumeBufferSize = m_volumeDepth*m_volumeHeight*m_volumeWidth * 4 * sizeof( uint8_t );
+        uint64_t volumeBufferSize = m_volumeDepth*m_volumeHeight*m_volumeWidth * 4 * sizeof( uint8_t );
 
         D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer( volumeBufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS );
         D3D12_RESOURCE_DESC uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer( volumeBufferSize );
@@ -337,7 +336,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 
         UpdateSubresources<1>( m_graphicCmdList.Get(), m_vertexBuffer.Get(), vertexBufferUpload.Get(), 0, 0, 1, &vertexData );
         m_graphicCmdList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
-                                                                                        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER ) );
+                                                                                     D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER ) );
 
         // Initialize the vertex buffer view.
         m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
@@ -375,7 +374,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 
         UpdateSubresources<1>( m_graphicCmdList.Get(), m_indexBuffer.Get(), indexBufferUpload.Get(), 0, 0, 1, &indexData );
         m_graphicCmdList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
-                                                                                        D3D12_RESOURCE_STATE_INDEX_BUFFER ) );
+                                                                                     D3D12_RESOURCE_STATE_INDEX_BUFFER ) );
 
         m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
         m_indexBufferView.SizeInBytes = sizeof( cubeIndices );
@@ -423,7 +422,7 @@ HRESULT VolumetricAnimation::LoadSizeDependentResource()
 
     uint32_t width = Core::g_config.swapChainDesc.Width;
     uint32_t height = Core::g_config.swapChainDesc.Height;
-   
+
     // Create an SRGB view of the swap chain buffer
     D3D12_RENDER_TARGET_VIEW_DESC desc = {};
     desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -431,7 +430,7 @@ HRESULT VolumetricAnimation::LoadSizeDependentResource()
     desc.Texture2D.MipSlice = 0;
     desc.Texture2D.PlaneSlice = 0;
 
-    for ( uint32_t i = 0; i < m_FrameCount; i++ )
+    for ( uint8_t i = 0; i < m_FrameCount; i++ )
     {
         VRET( Graphics::g_swapChain->GetBuffer( i, IID_PPV_ARGS( &m_renderTargets[i] ) ) );
         DXDebugName( m_renderTargets[i] );
@@ -501,14 +500,15 @@ void VolumetricAnimation::OnRender()
 
     memcpy( m_pCbvDataBegin, m_pConstantBufferData, sizeof( ConstantBuffer ) );
 
-        PopulateComputeCommandList( 0 );
-        uint64_t FenceValue = Graphics::g_cmdListMngr.ExecuteCommandList( m_computeCmdList.Get() );
-        Graphics::g_cmdListMngr.DiscardAllocator( FenceValue, m_cptcmdAllocator );
-        Graphics::g_cmdListMngr.WaitForFence( FenceValue );
+    PopulateComputeCommandList( 0 );
+    uint64_t FenceValue = Graphics::g_cmdListMngr.ExecuteCommandList( m_computeCmdList.Get() );
+    Graphics::g_cmdListMngr.DiscardAllocator( FenceValue, m_cptcmdAllocator );
+    Graphics::g_cmdListMngr.WaitForFence( FenceValue );
 
-        PopulateGraphicsCommandList( m_frameIndex );
-        FenceValue = Graphics::g_cmdListMngr.ExecuteCommandList( m_graphicCmdList.Get() );
-        Graphics::g_cmdListMngr.DiscardAllocator( FenceValue, m_gfxcmdAllocator );
+    PopulateGraphicsCommandList( m_frameIndex );
+    FenceValue = Graphics::g_cmdListMngr.ExecuteCommandList( m_graphicCmdList.Get() );
+    Graphics::g_cmdListMngr.DiscardAllocator( FenceValue, m_gfxcmdAllocator );
+    Graphics::g_CpuLinearAllocator.CleanupUsedPages( FenceValue );
 
     DXGI_PRESENT_PARAMETERS param;
     param.DirtyRectsCount = 0;
@@ -541,7 +541,6 @@ HRESULT VolumetricAnimation::OnSizeChanged()
 
     VRET( LoadSizeDependentResource() );
 
-    m_TextRenderer.SetViewSize( (float)Core::g_config.swapChainDesc.Width, (float)Core::g_config.swapChainDesc.Height);
     // Reset the frame index to the current back buffer index.
     m_frameIndex = Graphics::g_swapChain->GetCurrentBackBufferIndex();
     return S_OK;
@@ -552,7 +551,6 @@ void VolumetricAnimation::OnDestroy()
 {
     // Wait for the GPU to be done with all resources.
     Graphics::g_cmdListMngr.IdleGPU();
-    m_TextRenderer.Release();
 }
 
 bool VolumetricAnimation::OnEvent( MSG* msg )
@@ -590,7 +588,7 @@ bool VolumetricAnimation::OnEvent( MSG* msg )
             if ( msg->message == WM_POINTERUP ) m_camera.RemovePointer( pointerId );
             return true;
         }
-   
+
         return 0;
     }
     return false;
@@ -648,7 +646,9 @@ void VolumetricAnimation::PopulateGraphicsCommandList( uint32_t i )
 
 
         // Draw Text
+        TextContext m_TextRenderer;
         m_TextRenderer.Begin( m_graphicCmdList.Get() );
+        m_TextRenderer.SetViewSize( ( float ) Core::g_config.swapChainDesc.Width, ( float ) Core::g_config.swapChainDesc.Height );
         m_TextRenderer.SetFont( L"xerox.fnt" );
         m_TextRenderer.ResetCursor( 10, 20 );
         m_TextRenderer.SetTextSize( 20.f );
@@ -679,12 +679,12 @@ void VolumetricAnimation::PopulateComputeCommandList( uint32_t i )
         m_computeCmdList->SetComputeRootSignature( m_computeRootSignature.Get() );
         ID3D12DescriptorHeap* ppHeaps[] = { Graphics::g_pCSUDescriptorHeap->mHeap.Get() };
         m_computeCmdList->SetDescriptorHeaps( _countof( ppHeaps ), ppHeaps );
-        
+
 #if USING_DESCRIPTOR_TABLE
         m_computeCmdList->SetComputeRootDescriptorTable( RootParameterCBV, m_cbvHandle.GetGPUHandle() );
         m_computeCmdList->SetComputeRootDescriptorTable( RootParameterUAV, m_uavHandle.GetGPUHandle() );
 #else
-        m_computeCmdList->SetComputeRootConstantBufferView( RootParameterCBV, m_constantBuffer->GetGPUVirtualAddress());
+        m_computeCmdList->SetComputeRootConstantBufferView( RootParameterCBV, m_constantBuffer->GetGPUVirtualAddress() );
         m_computeCmdList->SetComputeRootUnorderedAccessView( RootParameterUAV, m_volumeBuffer->GetGPUVirtualAddress() );
 #endif
 

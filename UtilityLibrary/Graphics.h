@@ -6,6 +6,7 @@ using namespace DirectX;
 
 class CmdListMngr;
 class DescriptorHeap;
+class LinearAllocator;
 
 namespace Graphics
 {
@@ -18,6 +19,8 @@ namespace Graphics
     extern DescriptorHeap*              g_pDSVDescriptorHeap;
     extern DescriptorHeap*              g_pSMPDescriptorHeap;
     extern DescriptorHeap*              g_pCSUDescriptorHeap;
+    extern LinearAllocator              g_CpuLinearAllocator;
+    extern LinearAllocator              g_GpuLinearAllocator;
 
     void Init();
     void Shutdown();

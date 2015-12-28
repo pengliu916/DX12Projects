@@ -2,6 +2,7 @@
 
 #include "CmdListMngr.h"
 #include "DescriptorHeap.h"
+#include "LinearAllocator.h"
 #include "Graphics.h"
 #include "TextRenderer.h"
 #include "DX12Framework.h"
@@ -55,6 +56,8 @@ namespace Graphics
     DescriptorHeap*             g_pDSVDescriptorHeap;
     DescriptorHeap*             g_pSMPDescriptorHeap;
     DescriptorHeap*             g_pCSUDescriptorHeap;
+    LinearAllocator             g_CpuLinearAllocator( kCpuWritable );
+    LinearAllocator             g_GpuLinearAllocator( kGpuExclusive );
 
     void Init()
     {
@@ -82,6 +85,8 @@ namespace Graphics
         g_cmdListMngr.Shutdown();
 
         TextRenderer::ShutDown();
+
+        LinearAllocator::DestroyAll();
 
         delete g_pRTVDescriptorHeap;
         delete g_pDSVDescriptorHeap;
@@ -212,10 +217,10 @@ namespace Graphics
 
         // Enable or disable full screen
         if ( !Core::g_config.enableFullScreen ) VRET( Graphics::g_factory->MakeWindowAssociation( Core::g_hwnd, DXGI_MWA_NO_ALT_ENTER ) );
-        
-		// Create graphics resources for text renderer
+
+        // Create graphics resources for text renderer
         VRET( TextRenderer::CreateResource() );
-        
+
         return S_OK;
     }
 
