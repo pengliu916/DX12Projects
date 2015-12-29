@@ -13,9 +13,7 @@ namespace GPU_Profiler
     void StartTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx );
     void StopTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx );
     void ProcessAndReadback();
-    void BeginReadBack();
     double ReadTimer( uint32_t idx, double* start = nullptr, double* stop = nullptr );
-    void EndReadBack();
     uint32_t GetTimingStr( uint32_t idx, char* outStr );
 };
 

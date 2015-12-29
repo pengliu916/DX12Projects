@@ -4,6 +4,7 @@
 #include "DXHelper.h"
 #include "GPU_Profiler.h"
 #include "CmdListMngr.h"
+#include "TextRenderer.h"
 #include "Graphics.h"
 
 #include <unordered_map>
@@ -17,6 +18,7 @@ namespace{
     uint32_t                            gpuProfiler_timerCount;
     unordered_map<string, uint32_t>     gpuProfiler_timerNameIdxMap;
     string*                             gpuProfiler_timerNameArray;
+    uint64_t*                           gpuProfiler_timeStampBufferCopy;
 
     ID3D12CommandAllocator*             gpuProfiler_cmdAllocator;
 
@@ -24,6 +26,9 @@ namespace{
     ComPtr<ID3D12Resource>              gpuProfiler_readbackBuffer;
     ComPtr<ID3D12QueryHeap>             gpuProfiler_queryHeap;
     uint64_t*                           gpuProfiler_timeStampBuffer;
+
+    D3D12_VIEWPORT                      m_viewport;
+    D3D12_RECT                          m_scissorRect;
 
     CRITICAL_SECTION                    gpuProfiler_critialSection;
 }
@@ -34,6 +39,9 @@ HRESULT GPU_Profiler::CreateResource()
 
     // Initialize the array to store all timer name
     gpuProfiler_timerNameArray = new string[MAX_TIMER_COUNT];
+
+    // Initialize the array to copy from timer buffer
+    gpuProfiler_timeStampBufferCopy = new uint64_t[MAX_TIMER_COUNT];
 
     // Initialize output critical section
     InitializeCriticalSection( &gpuProfiler_critialSection );
@@ -83,6 +91,7 @@ HRESULT GPU_Profiler::CreateResource()
 void GPU_Profiler::ShutDown()
 {
     delete[] gpuProfiler_timerNameArray;
+    delete[] gpuProfiler_timeStampBufferCopy;
     DeleteCriticalSection( &gpuProfiler_critialSection );
 }
 
@@ -90,75 +99,75 @@ void GPU_Profiler::ProcessAndReadback()
 {
     gpuProfiler_cmdAllocator = Graphics::g_cmdListMngr.RequestAllocator();
     gpuProfiler_cmdList->Reset( gpuProfiler_cmdAllocator, nullptr );
+
+    ID3D12DescriptorHeap* ppHeaps[] = { Graphics::g_pCSUDescriptorHeap->mHeap.Get() };
+    gpuProfiler_cmdList->SetDescriptorHeaps( _countof( ppHeaps ), ppHeaps );
+
+    gpuProfiler_cmdList->RSSetViewports( 1, &Graphics::g_DisplayPlaneViewPort );
+    gpuProfiler_cmdList->RSSetScissorRects( 1, &Graphics::g_DisplayPlaneScissorRect );
+
+    gpuProfiler_cmdList->OMSetRenderTargets( 1, &Graphics::g_pDisplayPlaneHandlers[Graphics::g_CurrentDPIdx], FALSE, nullptr );
+
+    TextContext txtCtx;
+    txtCtx.Begin( gpuProfiler_cmdList.Get() );
+    txtCtx.SetViewSize( ( float ) Core::g_config.swapChainDesc.Width, ( float ) Core::g_config.swapChainDesc.Height );
+    txtCtx.ResetCursor( 10, 10 );
+    txtCtx.SetTextSize( 15.f );
+    for ( uint32_t idx = 0; idx < gpuProfiler_timerCount; idx++ )
+    {
+        char temp[128];
+        GPU_Profiler::GetTimingStr( idx, temp );
+        txtCtx.DrawString( string( temp ) );
+        txtCtx.NewLine();
+    }
+    txtCtx.End();
+
     gpuProfiler_cmdList->ResolveQueryData( gpuProfiler_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2 * gpuProfiler_timerCount, gpuProfiler_readbackBuffer.Get(), 0 );
+
     gpuProfiler_cmdList->Close();
     
     uint64_t FenceValue = Graphics::g_cmdListMngr.ExecuteCommandList( gpuProfiler_cmdList.Get() );
     Graphics::g_cmdListMngr.DiscardAllocator( FenceValue, gpuProfiler_cmdAllocator );
-}
 
-void GPU_Profiler::BeginReadBack()
-{
     HRESULT hr;
-
     D3D12_RANGE range;
     range.Begin = 0;
     range.End = MAX_TIMER_COUNT * 2 * sizeof( uint64_t );
     V( gpuProfiler_readbackBuffer->Map( 0, &range, reinterpret_cast< void** >( &gpuProfiler_timeStampBuffer ) ) );
+    memcpy( gpuProfiler_timeStampBufferCopy, gpuProfiler_timeStampBuffer, gpuProfiler_timerCount*2*sizeof( uint64_t ));
+    gpuProfiler_readbackBuffer->Unmap( 0, &range );
+
 }
 
 double GPU_Profiler::ReadTimer( uint32_t idx, double* start, double* stop )
 {
-    if ( idx >= MAX_TIMER_COUNT )
-    {
-        PRINTERROR( "idx = %d is beyond the bounderay %d", idx, MAX_TIMER_COUNT );
-        return 0;
-    }
+    ASSERT( idx < MAX_TIMER_COUNT );
 
-
-    double _start = gpuProfiler_timeStampBuffer[idx * 2] * gpuProfiler_GPUTickDelta;
-    double _stop = gpuProfiler_timeStampBuffer[idx * 2 + 1] * gpuProfiler_GPUTickDelta;
+    double _start = gpuProfiler_timeStampBufferCopy[idx * 2] * gpuProfiler_GPUTickDelta;
+    double _stop = gpuProfiler_timeStampBufferCopy[idx * 2 + 1] * gpuProfiler_GPUTickDelta;
     if ( start ) *start = _start;
     if ( stop ) *stop = _stop;
     return _stop - _start;
 }
 
-void GPU_Profiler::EndReadBack()
-{
-    D3D12_RANGE range = {};
-    gpuProfiler_readbackBuffer->Unmap( 0, &range);
-}
-
 uint32_t GPU_Profiler::GetTimingStr( uint32_t idx, char* outStr )
 {
-    if ( idx >= MAX_TIMER_COUNT )
-    {
-        PRINTERROR( "idx = %d is beyond the bounderay %d", idx, MAX_TIMER_COUNT );
-        return 0;
-    }
+    ASSERT( idx < MAX_TIMER_COUNT );
     if ( gpuProfiler_timerNameArray[idx].length() == 0 )
         return 0;
-    double result = gpuProfiler_timeStampBuffer[idx * 2 + 1] * gpuProfiler_GPUTickDelta - gpuProfiler_timeStampBuffer[idx * 2] * gpuProfiler_GPUTickDelta;
+    double result = gpuProfiler_timeStampBufferCopy[idx * 2 + 1] * gpuProfiler_GPUTickDelta - gpuProfiler_timeStampBufferCopy[idx * 2] * gpuProfiler_GPUTickDelta;
     sprintf( outStr, "%s:%4.3fms ", gpuProfiler_timerNameArray[idx].c_str(), result );
     return ( uint32_t ) strlen( outStr );
 }
 void GPU_Profiler::StartTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx )
 {
-    if ( idx >= MAX_TIMER_COUNT )
-    {
-        PRINTERROR( "idx = %d is beyond the bounderay %d", idx, MAX_TIMER_COUNT );
-        return;
-    }
+    ASSERT( idx < MAX_TIMER_COUNT );
     cmdlist->EndQuery( gpuProfiler_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, idx * 2 );
 }
 
 void GPU_Profiler::StopTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx )
 {
-    if ( idx >= MAX_TIMER_COUNT )
-    {
-        PRINTERROR( "idx = %d is beyond the bounderay %d", idx, MAX_TIMER_COUNT );
-        return;
-    }
+    ASSERT( idx < MAX_TIMER_COUNT );
     cmdlist->EndQuery( gpuProfiler_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, idx * 2 + 1 );
 }
 
