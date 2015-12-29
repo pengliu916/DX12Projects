@@ -48,16 +48,21 @@ namespace
 namespace Graphics
 {
     // Framework level gfx resource
-    ComPtr<ID3D12Device>        g_device;
-    ComPtr<IDXGISwapChain3>     g_swapChain;
-    ComPtr<IDXGIFactory4>       g_factory;
-    CmdListMngr                 g_cmdListMngr;
-    DescriptorHeap*             g_pRTVDescriptorHeap;
-    DescriptorHeap*             g_pDSVDescriptorHeap;
-    DescriptorHeap*             g_pSMPDescriptorHeap;
-    DescriptorHeap*             g_pCSUDescriptorHeap;
-    LinearAllocator             g_CpuLinearAllocator( kCpuWritable );
-    LinearAllocator             g_GpuLinearAllocator( kGpuExclusive );
+    ComPtr<ID3D12Device>            g_device;
+    ComPtr<IDXGISwapChain3>         g_swapChain;
+    ComPtr<IDXGIFactory4>           g_factory;
+    CmdListMngr                     g_cmdListMngr;
+    DescriptorHeap*                 g_pRTVDescriptorHeap;
+    DescriptorHeap*                 g_pDSVDescriptorHeap;
+    DescriptorHeap*                 g_pSMPDescriptorHeap;
+    DescriptorHeap*                 g_pCSUDescriptorHeap;
+    LinearAllocator                 g_CpuLinearAllocator( kCpuWritable );
+    LinearAllocator                 g_GpuLinearAllocator( kGpuExclusive );
+    D3D12_CPU_DESCRIPTOR_HANDLE*    g_pDisplayPlaneHandlers;
+    ComPtr<ID3D12Resource>*         g_pDisplayBuffers;
+    uint32_t                        g_CurrentDPIdx;
+    D3D12_VIEWPORT                  g_DisplayPlaneViewPort;
+    D3D12_RECT                      g_DisplayPlaneScissorRect;
 
     void Init()
     {
@@ -69,7 +74,7 @@ namespace Graphics
         Core::g_config.swapChainDesc.Width = 1280;
         Core::g_config.swapChainDesc.Height = 800;
         Core::g_config.swapChainDesc.BufferCount = 5;
-        Core::g_config.swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        Core::g_config.swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         Core::g_config.swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         Core::g_config.swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         Core::g_config.swapChainDesc.Stereo = FALSE;
@@ -93,6 +98,9 @@ namespace Graphics
         delete g_pSMPDescriptorHeap;
         delete g_pCSUDescriptorHeap;
 
+        delete[] g_pDisplayPlaneHandlers;
+        delete[] g_pDisplayBuffers;
+
 #ifdef _DEBUG
         ID3D12DebugDevice* debugInterface;
         if ( SUCCEEDED( g_device.Get()->QueryInterface( &debugInterface ) ) )
@@ -101,20 +109,6 @@ namespace Graphics
             debugInterface->Release();
         }
 #endif
-    }
-
-    HRESULT ResizeBackBuffer()
-    {
-        HRESULT hr;
-        // Resize the swap chain to the desired dimensions.
-        DXGI_SWAP_CHAIN_DESC desc = {};
-        Graphics::g_swapChain->GetDesc( &desc );
-        VRET( Graphics::g_swapChain->ResizeBuffers( Core::g_config.swapChainDesc.BufferCount,
-                                                    Core::g_config.swapChainDesc.Width,
-                                                    Core::g_config.swapChainDesc.Height,
-                                                    Core::g_config.swapChainDesc.Format,
-                                                    Core::g_config.swapChainDesc.Flags ) );
-        return hr;
     }
 
     HRESULT CreateResource()
@@ -134,24 +128,24 @@ namespace Graphics
 #endif
 
         // Create directx device
-        VRET( CreateDXGIFactory1( IID_PPV_ARGS( &Graphics::g_factory ) ) );
+        VRET( CreateDXGIFactory1( IID_PPV_ARGS( &g_factory ) ) );
         if ( Core::g_config.warpDevice )
         {
             ComPtr<IDXGIAdapter> warpAdapter;
-            VRET( Graphics::g_factory->EnumWarpAdapter( IID_PPV_ARGS( &warpAdapter ) ) );
-            VRET( D3D12CreateDevice( warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS( &Graphics::g_device ) ) );
+            VRET( g_factory->EnumWarpAdapter( IID_PPV_ARGS( &warpAdapter ) ) );
+            VRET( D3D12CreateDevice( warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS( &g_device ) ) );
             PRINTWARN( L"Warp Device created." )
         }
         else
         {
             ComPtr<IDXGIAdapter1> hardwareAdapter;
-            GetHardwareAdapter( Graphics::g_factory.Get(), &hardwareAdapter );
-            VRET( D3D12CreateDevice( hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS( &Graphics::g_device ) ) );
+            GetHardwareAdapter( g_factory.Get(), &hardwareAdapter );
+            VRET( D3D12CreateDevice( hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS( &g_device ) ) );
         }
 
         // Check Direct3D 12 feature hardware support (more usage refer Direct3D 12 sdk Capability Querying)
         D3D12_FEATURE_DATA_D3D12_OPTIONS options;
-        Graphics::g_device->CheckFeatureSupport( D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof( options ) );
+        g_device->CheckFeatureSupport( D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof( options ) );
         switch ( options.ResourceBindingTier )
         {
         case D3D12_RESOURCE_BINDING_TIER_1:
@@ -211,12 +205,31 @@ namespace Graphics
         // Create the swap chain
         ComPtr<IDXGISwapChain1> swapChain;
         // Swap chain needs the queue so that it can force a flush on it.
-        VRET( Graphics::g_factory->CreateSwapChainForHwnd( Graphics::g_cmdListMngr.GetCommandQueue(), Core::g_hwnd, &Core::g_config.swapChainDesc, NULL, NULL, &swapChain ) );
-        VRET( swapChain.As( &Graphics::g_swapChain ) );
-        DXDebugName( Graphics::g_swapChain );
+        VRET( g_factory->CreateSwapChainForHwnd( g_cmdListMngr.GetCommandQueue(), Core::g_hwnd, &Core::g_config.swapChainDesc, NULL, NULL, &swapChain ) );
+        VRET( swapChain.As( &g_swapChain ) );
+        DXDebugName( g_swapChain );
+        // Create CPU descriptor handles for each back buffer
+        g_pDisplayPlaneHandlers = new D3D12_CPU_DESCRIPTOR_HANDLE[Core::g_config.swapChainDesc.BufferCount];
+        g_pDisplayBuffers = new ComPtr<ID3D12Resource>[Core::g_config.swapChainDesc.BufferCount];
+        for ( uint8_t i = 0; i < Core::g_config.swapChainDesc.BufferCount; i++ )
+        {
+            g_pDisplayPlaneHandlers[i] = g_pRTVDescriptorHeap->Append().GetCPUHandle();
+
+            VRET( g_swapChain->GetBuffer( i, IID_PPV_ARGS( &g_pDisplayBuffers[i] ) ) );
+            DXDebugName( g_pDisplayBuffers[i] );
+            g_device->CreateRenderTargetView( g_pDisplayBuffers[i].Get(), nullptr, g_pDisplayPlaneHandlers[i] );
+        }
+        g_CurrentDPIdx = g_swapChain->GetCurrentBackBufferIndex();
+        // Create initial viewport and scissor rect
+        g_DisplayPlaneViewPort.Width = static_cast< float >( Core::g_config.swapChainDesc.Width );
+        g_DisplayPlaneViewPort.Height = static_cast< float >( Core::g_config.swapChainDesc.Height );
+        g_DisplayPlaneViewPort.MaxDepth = 1.0f;
+
+        g_DisplayPlaneScissorRect.right = static_cast< LONG >( Core::g_config.swapChainDesc.Width );
+        g_DisplayPlaneScissorRect.bottom = static_cast< LONG >( Core::g_config.swapChainDesc.Height );
 
         // Enable or disable full screen
-        if ( !Core::g_config.enableFullScreen ) VRET( Graphics::g_factory->MakeWindowAssociation( Core::g_hwnd, DXGI_MWA_NO_ALT_ENTER ) );
+        if ( !Core::g_config.enableFullScreen ) VRET( g_factory->MakeWindowAssociation( Core::g_hwnd, DXGI_MWA_NO_ALT_ENTER ) );
 
         // Create graphics resources for text renderer
         VRET( TextRenderer::CreateResource() );
@@ -244,5 +257,50 @@ namespace Graphics
         }
 
         return hr;
+    }
+
+    void Resize()
+    {
+        HRESULT hr;
+        g_DisplayPlaneViewPort.Width = static_cast< float >( Core::g_config.swapChainDesc.Width );
+        g_DisplayPlaneViewPort.Height = static_cast< float >( Core::g_config.swapChainDesc.Height );
+
+        g_DisplayPlaneScissorRect.right = static_cast< LONG >( Core::g_config.swapChainDesc.Width );
+        g_DisplayPlaneScissorRect.bottom = static_cast< LONG >( Core::g_config.swapChainDesc.Height );
+
+        g_cmdListMngr.IdleGPU();
+
+        for ( uint8_t i = 0; i < Core::g_config.swapChainDesc.BufferCount; i++ )
+            g_pDisplayBuffers[i].Reset();
+
+        V( g_swapChain->ResizeBuffers( Core::g_config.swapChainDesc.BufferCount,
+                                       Core::g_config.swapChainDesc.Width,
+                                       Core::g_config.swapChainDesc.Height,
+                                       Core::g_config.swapChainDesc.Format,
+                                       Core::g_config.swapChainDesc.Flags ) );
+
+        for ( uint8_t i = 0; i < Core::g_config.swapChainDesc.BufferCount; i++ )
+        {
+            V( g_swapChain->GetBuffer( i, IID_PPV_ARGS( &g_pDisplayBuffers[i] ) ) );
+            DXDebugName( g_pDisplayBuffers[i] );
+            g_device->CreateRenderTargetView( g_pDisplayBuffers[i].Get(), nullptr, g_pDisplayPlaneHandlers[i] );
+        }
+
+        g_CurrentDPIdx = g_swapChain->GetCurrentBackBufferIndex();
+    }
+
+    void Present()
+    {
+        HRESULT hr;
+
+        DXGI_PRESENT_PARAMETERS param;
+        param.DirtyRectsCount = 0;
+        param.pDirtyRects = NULL;
+        param.pScrollRect = NULL;
+        param.pScrollOffset = NULL;
+
+        // Present the frame.
+        V( g_swapChain->Present1( Core::g_config.vsync ? 1 : 0, 0, &param ) );
+        g_CurrentDPIdx = ( g_CurrentDPIdx + 1 ) % Core::g_config.swapChainDesc.BufferCount;
     }
 }

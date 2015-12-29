@@ -35,8 +35,6 @@ private:
         XMFLOAT3 color;
     };
 
-    static const uint32_t               m_FrameCount = 5;
-
     uint32_t                            m_width;
     uint32_t                            m_height;
 
@@ -45,16 +43,11 @@ private:
     float                               m_camMinOribtRadius;
 
     // Pipeline objects.
-    D3D12_VIEWPORT                      m_viewport;
-    D3D12_RECT                          m_scissorRect;
-    ComPtr<ID3D12Resource>              m_renderTargets[m_FrameCount];
     ComPtr<ID3D12CommandAllocator>      m_commandAllocator;
     ComPtr<ID3D12RootSignature>         m_rootSignature;
-    ComPtr<ID3D12DescriptorHeap>        m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap>        m_dsvHeap;
     ComPtr<ID3D12PipelineState>         m_pipelineState;
     ComPtr<ID3D12GraphicsCommandList>   m_commandList;
-    uint32_t                            m_rtvDescriptorSize;
 
     // App resources.
     ComPtr<ID3D12Resource>              m_depthBuffer;

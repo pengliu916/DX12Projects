@@ -177,12 +177,14 @@ namespace Core
 #ifndef RELEASE
         GPU_Profiler::ProcessAndReadback();
 #endif
+        Graphics::Present();
     }
 
     void FrameworkDestory( IDX12Framework& application )
     {
         application.OnDestroy();
         GPU_Profiler::ShutDown();
+        Graphics::Shutdown();
         MsgPrinting::Destory();
     }
 
@@ -195,6 +197,9 @@ namespace Core
     {
         g_config.swapChainDesc.Width = _width;
         g_config.swapChainDesc.Height = _height;
+
+        Graphics::Resize();
+
         application.OnSizeChanged();
         PRINTINFO( "Window resize to %d x %d", g_config.swapChainDesc.Width, g_config.swapChainDesc.Height );
     }

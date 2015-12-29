@@ -37,7 +37,6 @@ private:
         RootParametersCount
     };
 
-
     uint32_t                            m_width;
     uint32_t                            m_height;
 
@@ -45,19 +44,15 @@ private:
     float                               m_camMaxOribtRadius;
     float                               m_camMinOribtRadius;
 
-    static const int                    m_FrameCount = 5;
-
     ID3D12CommandAllocator*             m_gfxcmdAllocator;
     ID3D12CommandAllocator*             m_cptcmdAllocator;
 
     // Pipeline objects.
     D3D12_VIEWPORT                      m_viewport;
     D3D12_RECT                          m_scissorRect;
-    ComPtr<ID3D12Resource>              m_renderTargets[m_FrameCount];
     ComPtr<ID3D12GraphicsCommandList>   m_graphicCmdList;
     ComPtr<ID3D12RootSignature>         m_graphicsRootSignature;
     ComPtr<ID3D12PipelineState>         m_pipelineState;
-    D3D12_CPU_DESCRIPTOR_HANDLE         m_rtvHandle[m_FrameCount];
     D3D12_CPU_DESCRIPTOR_HANDLE         m_dsvHandle;
 
     DescriptorHandle                    m_srvHandle;
@@ -81,9 +76,6 @@ private:
     OrbitCamera                         m_camera;
     struct ConstantBuffer*              m_pConstantBufferData;
     uint8_t*                            m_pCbvDataBegin;
-
-    // Synchronization objects.
-    uint32_t                            m_frameIndex;
 
     uint32_t                            m_volumeWidth;
     uint32_t                            m_volumeHeight;

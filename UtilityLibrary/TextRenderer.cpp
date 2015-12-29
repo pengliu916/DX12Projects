@@ -7413,7 +7413,7 @@ namespace TextRenderer
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             psoDesc.NumRenderTargets = 1;
-            psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;// Core::g_config.swapChainDesc.Format;
+            psoDesc.RTVFormats[0] = Core::g_config.swapChainDesc.Format;
             psoDesc.SampleDesc.Count = 1;
             VRET( Graphics::g_device->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &m_textPSO ) ) );
             DXDebugName( m_textPSO );
@@ -7516,7 +7516,6 @@ void TextContext::SetFont( const wstring& fontName, float size )
     {
         if ( size > 0.0f )
             SetTextSize( size );
-
         return;
     }
 

@@ -2,7 +2,7 @@
 #include "RotatingCube.h"
 
 RotatingCube::RotatingCube( uint32_t width, uint32_t height, std::wstring name ) :
-    m_frameIndex( 0 ), m_viewport(), m_scissorRect(), m_rtvDescriptorSize( 0 )
+    m_frameIndex( 0 )
 {
     m_width = width;
     m_height = height;
@@ -26,7 +26,7 @@ void RotatingCube::ResetCameraView()
 
 void RotatingCube::OnConfiguration()
 {
-    Core::g_config.swapChainDesc.BufferCount = m_FrameCount;
+    Core::g_config.swapChainDesc.BufferCount = 5;
     Core::g_config.swapChainDesc.Width = m_width;
     Core::g_config.swapChainDesc.Height = m_height;
 }
@@ -49,16 +49,6 @@ HRESULT RotatingCube::LoadPipeline()
 
     // Create descriptor heaps.
     {
-        // Describe and create a render target view (RTV) descriptor heap.
-        D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-        rtvHeapDesc.NumDescriptors = m_FrameCount;
-        rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        VRET( Graphics::g_device->CreateDescriptorHeap( &rtvHeapDesc, IID_PPV_ARGS( &m_rtvHeap ) ) );
-        DXDebugName( m_rtvHeap );
-
-        m_rtvDescriptorSize = Graphics::g_device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_RTV );
-
         // Describe and create a depth stencil view (DSV) descriptor heap.
         D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
         dsvHeapDesc.NumDescriptors = 1;
@@ -129,7 +119,7 @@ HRESULT RotatingCube::LoadAssets()
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+        psoDesc.RTVFormats[0] = Core::g_config.swapChainDesc.Format;
         psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleDesc.Count = 1;
         VRET( Graphics::g_device->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &m_pipelineState ) ) );
@@ -252,16 +242,6 @@ HRESULT RotatingCube::LoadSizeDependentResource()
     uint32_t width = Core::g_config.swapChainDesc.Width;
     uint32_t height = Core::g_config.swapChainDesc.Height;
 
-    // Create render target views (RTVs).
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle( m_rtvHeap->GetCPUDescriptorHandleForHeapStart() );
-    for ( uint32_t i = 0; i < m_FrameCount; i++ )
-    {
-        VRET( Graphics::g_swapChain->GetBuffer( i, IID_PPV_ARGS( &m_renderTargets[i] ) ) );
-        DXDebugName( m_renderTargets[i] );
-        Graphics::g_device->CreateRenderTargetView( m_renderTargets[i].Get(), nullptr, rtvHandle );
-        rtvHandle.Offset( 1, m_rtvDescriptorSize );
-    }
-
     // Create the depth stencil.
     {
         CD3DX12_RESOURCE_DESC shadowTextureDesc( D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0, static_cast< uint32_t >( width ), static_cast< uint32_t >( height ),
@@ -280,13 +260,6 @@ HRESULT RotatingCube::LoadSizeDependentResource()
         // Create the depth stencil view.
         Graphics::g_device->CreateDepthStencilView( m_depthBuffer.Get(), nullptr, m_dsvHeap->GetCPUDescriptorHandleForHeapStart() );
     }
-
-    m_viewport.Width = static_cast< float >( width );
-    m_viewport.Height = static_cast< float >( height );
-    m_viewport.MaxDepth = 1.0f;
-
-    m_scissorRect.right = static_cast< LONG >( width );
-    m_scissorRect.bottom = static_cast< LONG >( height );
 
     float fAspectRatio = width / ( FLOAT ) height;
     m_camera.Projection( XM_PIDIV2 / 2, fAspectRatio );
@@ -312,17 +285,12 @@ void RotatingCube::OnUpdate()
 // Render the scene.
 void RotatingCube::OnRender()
 {
-    HRESULT hr;
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList();
 
     // Execute the command list.
     ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
     Graphics::g_cmdListMngr.GetCommandQueue()->ExecuteCommandLists( _countof( ppCommandLists ), ppCommandLists );
-
-    // Present the frame.
-    V( Graphics::g_swapChain->Present( Core::g_config.vsync ? 1 : 0, 0 ) );
-    m_frameIndex = ( m_frameIndex + 1 ) % m_FrameCount;
 
     WaitForPreviousFrame();
 }
@@ -332,24 +300,8 @@ HRESULT RotatingCube::OnSizeChanged()
     HRESULT hr;
     // Flush all current GPU commands.
     WaitForPreviousFrame();
-
-    // Release the resources holding references to the swap chain (requirement of
-    // IDXGISwapChain::ResizeBuffers) and reset the frame fence values to the
-    // current fence value.
-    for ( uint32_t n = 0; n < m_FrameCount; n++ )
-    {
-        m_renderTargets[n].Reset();
-    }
-
-    // Resize the swap chain to the desired dimensions.
-    VRET( Graphics::ResizeBackBuffer() );
-
     m_depthBuffer.Reset();
-
     VRET( LoadSizeDependentResource() );
-
-    // Reset the frame index to the current back buffer index.
-    m_frameIndex = Graphics::g_swapChain->GetCurrentBackBufferIndex();
     return S_OK;
 }
 
@@ -428,18 +380,17 @@ void RotatingCube::PopulateCommandList()
         // Set necessary state.
         m_commandList->SetGraphicsRootSignature( m_rootSignature.Get() );
         m_commandList->SetGraphicsRootConstantBufferView( 0, m_constantBuffer->GetGPUVirtualAddress() );
-        m_commandList->RSSetViewports( 1, &m_viewport );
-        m_commandList->RSSetScissorRects( 1, &m_scissorRect );
+        m_commandList->RSSetViewports( 1, &Graphics::g_DisplayPlaneViewPort );
+        m_commandList->RSSetScissorRects( 1, &Graphics::g_DisplayPlaneScissorRect );
 
         // Indicate that the back buffer will be used as a render target.
-        m_commandList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET ) );
+        m_commandList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( Graphics::g_pDisplayBuffers[Graphics::g_CurrentDPIdx].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET ) );
 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle( m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize );
-        m_commandList->OMSetRenderTargets( 1, &rtvHandle, FALSE, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart() );
+        m_commandList->OMSetRenderTargets( 1, &Graphics::g_pDisplayPlaneHandlers[Graphics::g_CurrentDPIdx], FALSE, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart() );
 
         // Record commands.
         const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-        m_commandList->ClearRenderTargetView( rtvHandle, clearColor, 0, nullptr );
+        m_commandList->ClearRenderTargetView( Graphics::g_pDisplayPlaneHandlers[Graphics::g_CurrentDPIdx], clearColor, 0, nullptr );
         m_commandList->ClearDepthStencilView( m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr );
         m_commandList->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
         m_commandList->IASetVertexBuffers( 0, 1, &m_vertexBufferView );
@@ -447,7 +398,7 @@ void RotatingCube::PopulateCommandList()
         m_commandList->DrawIndexedInstanced( 36, 1, 0, 0, 0 );
 
         // Indicate that the back buffer will now be used to present.
-        m_commandList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT ) );
+        m_commandList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( Graphics::g_pDisplayBuffers[Graphics::g_CurrentDPIdx].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT ) );
     }
     V( m_commandList->Close() );
 }
