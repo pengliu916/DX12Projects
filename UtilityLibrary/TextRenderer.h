@@ -1,28 +1,14 @@
-// Ported from MSFT miniEngine
 #pragma once
-#include "LibraryHeader.h"
+//#include "LibraryHeader.h"
 #include "DescriptorHeap.h"
+#include "GpuResource.h"
 #include <unordered_map>
-
-using namespace Microsoft::WRL;
-using namespace DirectX;
-using namespace std;
-
 
 namespace TextRenderer
 {
 #include "TextRenderer_SharedHeader.inl"
-    struct Texture
-    {
-        DescriptorHandle m_srvHandle;
-        D3D12_GPU_VIRTUAL_ADDRESS m_GpuVirtualAddress;
-        ComPtr<ID3D12Resource> m_pResource;
 
-        HRESULT Create( size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData );
-        HRESULT Initilize( Texture* tex, D3D12_SUBRESOURCE_DATA SubData[] );
-    };
-
-    HRESULT CreateResource();
+	void Initialize();
     void ShutDown();
 
     class Font
@@ -54,7 +40,7 @@ namespace TextRenderer
         ~Font();
 
         void LoadFromBinary( const wchar_t*, const uint8_t*, const size_t );
-        bool Load( const wstring& );
+        bool Load( const std::wstring& );
         const Glyph* GetGlyph( wchar_t ch ) const;
         uint16_t GetHeight() const;
         uint16_t GetBorderSize() const;
@@ -65,23 +51,23 @@ namespace TextRenderer
         float GetAntialiasRange( float ) const;
 
     private:
-        float                           m_NormalizeXCoord;
-        float                           m_NormalizeYCoord;
-        float                           m_FontLineSpacing;
-        float                           m_AntialiasRange;
-        uint16_t                        m_FontHeight;
-        uint16_t                        m_BorderSize;
-        uint16_t                        m_TextureWidth;
-        uint16_t                        m_TextureHeight;
-        Texture                         m_Texture;
-        unordered_map<wchar_t, Glyph>   m_Dictionary;
+        float								m_NormalizeXCoord;
+        float								m_NormalizeYCoord;
+        float								m_FontLineSpacing;
+        float								m_AntialiasRange;
+        uint16_t							m_FontHeight;
+        uint16_t							m_BorderSize;
+        uint16_t							m_TextureWidth;
+        uint16_t							m_TextureHeight;
+        Texture								m_Texture;
+        std::unordered_map<wchar_t, Glyph>	m_Dictionary;
     };
 };
 
 class TextContext
 {
 public:
-    TextContext( float canvasWidth = 1920.f, float canvasHeight = 1080.f );
+    TextContext( GraphicsContext& CmdContext, float canvasWidth = 1920.f, float canvasHeight = 1080.f );
 
     // Put settings back to the defaults.
     void ResetSettings( void );
@@ -116,7 +102,7 @@ public:
     void SetShadowParams( float opacity, float width );
 
     // Set the color and transparency of text.
-    void SetColor( XMFLOAT4 color );
+    void SetColor( DirectX::XMFLOAT4 color );
 
     // Get the amount to advance the Y position to begin a new line
     float GetVerticalSpacing( void );
@@ -125,8 +111,8 @@ public:
     // Rendering commands
     //====================================================================
     // Begin and end drawing commands
-    void Begin( ID3D12GraphicsCommandList* cmdList );
-    void End( void );
+    void Begin();
+    void End();
 
     // Draw a string
     void DrawString( const std::wstring& str );
@@ -148,11 +134,10 @@ private:
 
     UINT FillVertexBuffer( TextVert volatile* verts, const char* str, size_t stride, size_t slen );
 
+	GraphicsContext& m_Context;
     TextRenderer::Font*                 m_CurrentFont;
     TextRenderer::VertexShaderParams    m_VSParams;
     TextRenderer::PixelShaderParams     m_PSParams;
-
-    ID3D12GraphicsCommandList*          m_cmdList;
 
     bool m_VSConstantBufferIsStale;	// Tracks when the CB needs updating
     bool m_PSConstantBufferIsStale;	// Tracks when the CB needs updating

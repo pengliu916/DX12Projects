@@ -20,9 +20,6 @@
 
 #include "DXHelper.h"
 
-using namespace DirectX;
-using namespace Microsoft::WRL;
-
 namespace Core
 {
     const uint32_t          NUM_RTV = 64;

@@ -104,26 +104,38 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CmdListMngr.cpp" />
+    <ClCompile Include="CommandContext.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="DX12Framework.cpp" />
+    <ClCompile Include="DynamicDescriptorHeap.cpp" />
+    <ClCompile Include="GpuResource.cpp" />
     <ClCompile Include="GPU_Profiler.cpp" />
     <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="LibraryHeader.cpp" />
     <ClCompile Include="LinearAllocator.cpp" />
     <ClCompile Include="MsgPrinting.cpp" />
+    <ClCompile Include="PipelineState.cpp" />
+    <ClCompile Include="RootSignature.cpp" />
+    <ClCompile Include="SamplerMngr.cpp" />
     <ClCompile Include="TextRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CmdListMngr.h" />
+    <ClInclude Include="CommandContext.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="DX12Framework.h" />
     <ClInclude Include="DXHelper.h" />
+    <ClInclude Include="DynamicDescriptorHeap.h" />
+    <ClInclude Include="GpuResource.h" />
     <ClInclude Include="GPU_Profiler.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="LibraryHeader.h" />
     <ClInclude Include="LinearAllocator.h" />
     <ClInclude Include="MsgPrinting.h" />
+    <ClInclude Include="PipelineState.h" />
+    <ClInclude Include="RootSignature.h" />
+    <ClInclude Include="SamplerMngr.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="TextRenderer.h" />
     <ClInclude Include="Utility.h" />
@@ -135,22 +147,22 @@
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">true</DeploymentContent>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">copy %(Identity) "$(OutDir)" &gt;NUL</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">copy %(Identity) "$(OutDir)" &gt;NUL</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">copy %(Identity) "$(OutDir)" &gt;NUL</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\%(Identity)</Outputs>
       <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</TreatOutputAsContent>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\%(Identity)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">copy %(Identity) "$(OutDir)" &gt;NUL</Command>
       <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</TreatOutputAsContent>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">$(OutDir)\%(Identity)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">copy %(Identity) "$(OutDir)" &gt;NUL</Command>
       <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">true</TreatOutputAsContent>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\%(Identity)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\%(Identity)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">$(OutDir)\%(Identity)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="TextRenderer_SharedHeader.inl">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
-      <FileType>Document</FileType>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">true</DeploymentContent>
+      <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">copy %(Identity) "$(OutDir)" &gt;NUL</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">copy %(Identity) "$(OutDir)" &gt;NUL</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">copy %(Identity) "$(OutDir)" &gt;NUL</Command>

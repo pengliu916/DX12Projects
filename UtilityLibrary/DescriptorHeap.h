@@ -1,15 +1,15 @@
 #pragma once
 #include <vector>
 
-using namespace DirectX;
-using namespace Microsoft::WRL;
-
 class DescriptorHandle
 {
     friend class DescriptorHeap;
 public:
     DescriptorHandle();
-    DescriptorHandle( CD3DX12_CPU_DESCRIPTOR_HANDLE, CD3DX12_GPU_DESCRIPTOR_HANDLE, bool );
+    DescriptorHandle( CD3DX12_CPU_DESCRIPTOR_HANDLE, CD3DX12_GPU_DESCRIPTOR_HANDLE);
+	DescriptorHandle( D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE );
+	DescriptorHandle operator+ (INT OffsetScaledByDescriptorSize) const;
+	void operator += (INT OffsetScaledByDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE GetCPUHandle();
     CD3DX12_GPU_DESCRIPTOR_HANDLE GetGPUHandle();
 private:
@@ -34,7 +34,7 @@ public:
     void Resize( UINT newSize ) { mCurrentSize = newSize; }
     UINT Size() const { return mCurrentSize; }
 
-    ComPtr<ID3D12DescriptorHeap> mHeap;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mHeap;
     UINT mHandleIncrementSize = 0;
 
 protected:
@@ -42,7 +42,7 @@ protected:
     CD3DX12_CPU_DESCRIPTOR_HANDLE CPU( UINT index = 0 ) const {return CD3DX12_CPU_DESCRIPTOR_HANDLE( mCPUBegin, index, mHandleIncrementSize );}
     CD3DX12_GPU_DESCRIPTOR_HANDLE GPU( UINT index = 0 ) const {return CD3DX12_GPU_DESCRIPTOR_HANDLE( mGPUBegin, index, mHandleIncrementSize );}
     CD3DX12_GPU_DESCRIPTOR_HANDLE GPUEnd() const { return GPU( mCurrentSize ); }
-    INT HandleIncrementSize() const { return mHandleIncrementSize; }
+    UINT HandleIncrementSize() const { return mHandleIncrementSize; }
    
     ID3D12Device* mDevice = nullptr;
     CD3DX12_CPU_DESCRIPTOR_HANDLE mCPUBegin;

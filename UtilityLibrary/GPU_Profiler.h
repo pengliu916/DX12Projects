@@ -1,26 +1,26 @@
 #pragma once
 
-using namespace DirectX;
-using namespace Microsoft::WRL;
+class CommandContext;
+class GraphicsContext;
 
 namespace GPU_Profiler
 {
     const uint16_t MAX_TIMER_NAME_LENGTH = 64;
     const uint16_t MAX_TIMER_COUNT = 512;
 
+	void Initialize();
     HRESULT CreateResource();
     void ShutDown();
-    void StartTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx );
-    void StopTimeStampPunch( ID3D12GraphicsCommandList* cmdlist, uint32_t idx );
     void ProcessAndReadback();
+	void DrawStats(GraphicsContext& gfxContext);
     double ReadTimer( uint32_t idx, double* start = nullptr, double* stop = nullptr );
-    uint32_t GetTimingStr( uint32_t idx, char* outStr );
+    uint32_t GetTimingStr( uint32_t idx, wchar_t* outStr );
 };
 
 class GPUProfileScope
 {
 public:
-    GPUProfileScope( ID3D12GraphicsCommandList* cmdlist, const char* szName );
+    GPUProfileScope( CommandContext& Context, const wchar_t* szName );
     ~GPUProfileScope();
 
     // Prevent copying
@@ -28,7 +28,7 @@ public:
     GPUProfileScope& operator= ( GPUProfileScope const& ) = delete;
 
 private:
-    ID3D12GraphicsCommandList* m_cmdlist;
+    CommandContext& m_Context;
     uint32_t m_idx;
 };
 

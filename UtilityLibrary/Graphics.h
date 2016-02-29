@@ -1,31 +1,51 @@
 #pragma once
 
-
-using namespace Microsoft::WRL;
-using namespace DirectX;
-
 class CmdListMngr;
+class ContextManager;
 class DescriptorHeap;
 class LinearAllocator;
+class ColorBuffer;
+class SamplerDesc;
+class SamplerDescriptor;
 
 namespace Graphics
 {
     // Framework level gfx resource
-    extern ComPtr<ID3D12Device>         g_device;
-    extern ComPtr<IDXGISwapChain3>      g_swapChain;
-    extern ComPtr<IDXGIFactory4>        g_factory;
-    extern CmdListMngr                  g_cmdListMngr;
-    extern DescriptorHeap*              g_pRTVDescriptorHeap;
-    extern DescriptorHeap*              g_pDSVDescriptorHeap;
-    extern DescriptorHeap*              g_pSMPDescriptorHeap;
-    extern DescriptorHeap*              g_pCSUDescriptorHeap;
-    extern LinearAllocator              g_CpuLinearAllocator;
-    extern LinearAllocator              g_GpuLinearAllocator;
-    extern D3D12_CPU_DESCRIPTOR_HANDLE* g_pDisplayPlaneHandlers;
-    extern ComPtr<ID3D12Resource>*      g_pDisplayBuffers;
-    extern uint32_t                     g_CurrentDPIdx;
-    extern D3D12_VIEWPORT               g_DisplayPlaneViewPort;
-    extern D3D12_RECT                   g_DisplayPlaneScissorRect;
+    extern Microsoft::WRL::ComPtr<ID3D12Device>		g_device;
+    extern Microsoft::WRL::ComPtr<IDXGISwapChain3>	g_swapChain;
+    extern Microsoft::WRL::ComPtr<IDXGIFactory4>	g_factory;
+	extern CmdListMngr								g_cmdListMngr;
+	extern ContextManager							g_ContextMngr;
+    extern DescriptorHeap*							g_pRTVDescriptorHeap;
+    extern DescriptorHeap*							g_pDSVDescriptorHeap;
+    extern DescriptorHeap*							g_pSMPDescriptorHeap;
+    extern DescriptorHeap*							g_pCSUDescriptorHeap;
+	extern ColorBuffer*								g_pDisplayPlanes;
+    extern LinearAllocator							g_CpuLinearAllocator;
+    extern LinearAllocator							g_GpuLinearAllocator;
+    extern uint32_t									g_CurrentDPIdx;
+
+    extern D3D12_VIEWPORT							g_DisplayPlaneViewPort;
+    extern D3D12_RECT								g_DisplayPlaneScissorRect;
+
+	extern SamplerDesc								g_SamplerLinearClampDesc;
+	extern SamplerDescriptor						g_SamplerLinearClamp;
+
+	extern D3D12_RASTERIZER_DESC					g_RasterizerDefault;
+	extern D3D12_RASTERIZER_DESC					g_RasterizerTwoSided;
+
+	extern D3D12_BLEND_DESC							g_BlendNoColorWrite;
+	extern D3D12_BLEND_DESC							g_BlendDisable;
+	extern D3D12_BLEND_DESC							g_BlendPreMultiplied;
+	extern D3D12_BLEND_DESC							g_BlendTraditional;
+	extern D3D12_BLEND_DESC							g_BlendAdditive;
+	extern D3D12_BLEND_DESC							g_BlendTraditionalAdditive;
+
+	extern D3D12_DEPTH_STENCIL_DESC					g_DepthStateDisabled;
+	extern D3D12_DEPTH_STENCIL_DESC					g_DepthStateReadWrite;
+	extern D3D12_DEPTH_STENCIL_DESC					g_DepthStateReadOnly;
+	extern D3D12_DEPTH_STENCIL_DESC					g_DepthStateReadOnlyReversed;
+	extern D3D12_DEPTH_STENCIL_DESC					g_DepthStateTestEqual;
 
     void Init();
     void Shutdown();

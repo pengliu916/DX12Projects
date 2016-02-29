@@ -2,7 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="GPU_Profiler.cpp" />
     <ClCompile Include="MsgPrinting.cpp" />
     <ClCompile Include="CmdListMngr.cpp">
       <Filter>Core</Filter>
@@ -19,16 +18,34 @@
     <ClCompile Include="DescriptorHeap.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="TextRenderer.cpp" />
     <ClCompile Include="LinearAllocator.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="CommandContext.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="GpuResource.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="PipelineState.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="RootSignature.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="TextRenderer.cpp" />
+    <ClCompile Include="SamplerMngr.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="DynamicDescriptorHeap.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="GPU_Profiler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utility.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="DXHelper.h" />
-    <ClInclude Include="GPU_Profiler.h" />
     <ClInclude Include="MsgPrinting.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="CmdListMngr.h">
@@ -46,10 +63,29 @@
     <ClInclude Include="DescriptorHeap.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="TextRenderer.h" />
     <ClInclude Include="LinearAllocator.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="CommandContext.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GpuResource.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="PipelineState.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="RootSignature.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="TextRenderer.h" />
+    <ClInclude Include="SamplerMngr.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="DynamicDescriptorHeap.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU_Profiler.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">
@@ -57,7 +93,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="TextRenderer.hlsl" />
     <CustomBuild Include="TextRenderer_SharedHeader.inl" />
+    <CustomBuild Include="TextRenderer.hlsl" />
   </ItemGroup>
 </Project>

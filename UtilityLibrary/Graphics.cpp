@@ -1,12 +1,20 @@
 #include "LibraryHeader.h"
 
+#include "CommandContext.h"
 #include "CmdListMngr.h"
 #include "DescriptorHeap.h"
 #include "LinearAllocator.h"
+#include "RootSignature.h"
+#include "PipelineState.h"
+#include "SamplerMngr.h"
+#include "GpuResource.h"
 #include "Graphics.h"
+#include "GPU_Profiler.h"
 #include "TextRenderer.h"
 #include "DX12Framework.h"
 
+using namespace Microsoft::WRL;
+using namespace std;
 namespace
 {
     // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
@@ -51,18 +59,38 @@ namespace Graphics
     ComPtr<ID3D12Device>            g_device;
     ComPtr<IDXGISwapChain3>         g_swapChain;
     ComPtr<IDXGIFactory4>           g_factory;
-    CmdListMngr                     g_cmdListMngr;
+	CmdListMngr						g_cmdListMngr;
+	ContextManager					g_ContextMngr;
     DescriptorHeap*                 g_pRTVDescriptorHeap;
     DescriptorHeap*                 g_pDSVDescriptorHeap;
     DescriptorHeap*                 g_pSMPDescriptorHeap;
     DescriptorHeap*                 g_pCSUDescriptorHeap;
     LinearAllocator                 g_CpuLinearAllocator( kCpuWritable );
     LinearAllocator                 g_GpuLinearAllocator( kGpuExclusive );
-    D3D12_CPU_DESCRIPTOR_HANDLE*    g_pDisplayPlaneHandlers;
-    ComPtr<ID3D12Resource>*         g_pDisplayBuffers;
+	ColorBuffer*					g_pDisplayPlanes;
     uint32_t                        g_CurrentDPIdx;
     D3D12_VIEWPORT                  g_DisplayPlaneViewPort;
     D3D12_RECT                      g_DisplayPlaneScissorRect;
+
+	SamplerDesc						g_SamplerLinearClampDesc;
+	SamplerDescriptor				g_SamplerLinearClamp;
+
+	D3D12_RASTERIZER_DESC			g_RasterizerDefault;
+	D3D12_RASTERIZER_DESC			g_RasterizerTwoSided;
+
+	D3D12_BLEND_DESC				g_BlendNoColorWrite;
+	D3D12_BLEND_DESC				g_BlendDisable;
+	D3D12_BLEND_DESC				g_BlendPreMultiplied;
+	D3D12_BLEND_DESC				g_BlendTraditional;
+	D3D12_BLEND_DESC				g_BlendAdditive;
+	D3D12_BLEND_DESC				g_BlendTraditionalAdditive;
+
+	D3D12_DEPTH_STENCIL_DESC		g_DepthStateDisabled;
+	D3D12_DEPTH_STENCIL_DESC		g_DepthStateReadWrite;
+	D3D12_DEPTH_STENCIL_DESC		g_DepthStateReadOnly;
+	D3D12_DEPTH_STENCIL_DESC		g_DepthStateReadOnlyReversed;
+	D3D12_DEPTH_STENCIL_DESC		g_DepthStateTestEqual;
+
 
     void Init()
     {
@@ -83,23 +111,38 @@ namespace Graphics
         Core::g_config.swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
         Core::g_config.swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED; // Not used
         Core::g_config.swapChainDesc.Flags = 0;
+
+		RootSignature::Initialize();
+		PSO::Initialize();
+		DynamicDescriptorHeap::Initialize();
+#ifndef RELEASE
+		GPU_Profiler::Initialize();
+#endif
     }
 
     void Shutdown()
     {
+		g_cmdListMngr.IdleGPU();
+		GPU_Profiler::ShutDown();
+		CommandContext::DestroyAllContexts();
         g_cmdListMngr.Shutdown();
+		PSO::DestroyAll();
+		RootSignature::DestroyAll();
+		DynamicDescriptorHeap::Shutdown();
 
         TextRenderer::ShutDown();
 
         LinearAllocator::DestroyAll();
+
+		for (uint8_t i = 0; i < Core::g_config.swapChainDesc.BufferCount; ++i)
+			g_pDisplayPlanes[i].Destroy();
 
         delete g_pRTVDescriptorHeap;
         delete g_pDSVDescriptorHeap;
         delete g_pSMPDescriptorHeap;
         delete g_pCSUDescriptorHeap;
 
-        delete[] g_pDisplayPlaneHandlers;
-        delete[] g_pDisplayBuffers;
+		delete[] g_pDisplayPlanes;
 
 #ifdef _DEBUG
         ID3D12DebugDevice* debugInterface;
@@ -195,7 +238,8 @@ namespace Graphics
         // Prevent the GPU from overclocking or underclocking to get consistent timings
         g_device->SetStablePowerState( TRUE );
 #endif
-        g_cmdListMngr.CreateResource( g_device.Get() );
+        g_cmdListMngr.Create( g_device.Get() );
+
         g_pRTVDescriptorHeap = new DescriptorHeap( g_device.Get(), Core::NUM_RTV, D3D12_DESCRIPTOR_HEAP_TYPE_RTV );
         g_pDSVDescriptorHeap = new DescriptorHeap( g_device.Get(), Core::NUM_DSV, D3D12_DESCRIPTOR_HEAP_TYPE_DSV );
         g_pSMPDescriptorHeap = new DescriptorHeap( g_device.Get(), Core::NUM_SMP, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER );
@@ -208,16 +252,13 @@ namespace Graphics
         VRET( g_factory->CreateSwapChainForHwnd( g_cmdListMngr.GetCommandQueue(), Core::g_hwnd, &Core::g_config.swapChainDesc, NULL, NULL, &swapChain ) );
         VRET( swapChain.As( &g_swapChain ) );
         DXDebugName( g_swapChain );
-        // Create CPU descriptor handles for each back buffer
-        g_pDisplayPlaneHandlers = new D3D12_CPU_DESCRIPTOR_HANDLE[Core::g_config.swapChainDesc.BufferCount];
-        g_pDisplayBuffers = new ComPtr<ID3D12Resource>[Core::g_config.swapChainDesc.BufferCount];
+        // Create swapchain buffer resource
+		g_pDisplayPlanes = new ColorBuffer[Core::g_config.swapChainDesc.BufferCount];
         for ( uint8_t i = 0; i < Core::g_config.swapChainDesc.BufferCount; i++ )
         {
-            g_pDisplayPlaneHandlers[i] = g_pRTVDescriptorHeap->Append().GetCPUHandle();
-
-            VRET( g_swapChain->GetBuffer( i, IID_PPV_ARGS( &g_pDisplayBuffers[i] ) ) );
-            DXDebugName( g_pDisplayBuffers[i] );
-            g_device->CreateRenderTargetView( g_pDisplayBuffers[i].Get(), nullptr, g_pDisplayPlaneHandlers[i] );
+			ComPtr<ID3D12Resource> DisplayPlane;
+            VRET( g_swapChain->GetBuffer( i, IID_PPV_ARGS( &DisplayPlane ) ) );
+			g_pDisplayPlanes[i].CreateFromSwapChain(L"SwapChain Buffer", DisplayPlane.Detach());
         }
         g_CurrentDPIdx = g_swapChain->GetCurrentBackBufferIndex();
         // Create initial viewport and scissor rect
@@ -231,8 +272,88 @@ namespace Graphics
         // Enable or disable full screen
         if ( !Core::g_config.enableFullScreen ) VRET( g_factory->MakeWindowAssociation( Core::g_hwnd, DXGI_MWA_NO_ALT_ENTER ) );
 
-        // Create graphics resources for text renderer
-        VRET( TextRenderer::CreateResource() );
+		// Create engine level predefined resource
+		// Sampler states
+		g_SamplerLinearClampDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		g_SamplerLinearClampDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+		g_SamplerLinearClamp.Create(g_SamplerLinearClampDesc);
+		
+		// Rasterizer states
+		g_RasterizerDefault.FillMode = D3D12_FILL_MODE_SOLID;
+		g_RasterizerDefault.CullMode = D3D12_CULL_MODE_BACK;
+		g_RasterizerDefault.FrontCounterClockwise = TRUE;
+		g_RasterizerDefault.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+		g_RasterizerDefault.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+		g_RasterizerDefault.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+		g_RasterizerDefault.DepthClipEnable = TRUE;
+		g_RasterizerDefault.MultisampleEnable = FALSE;
+		g_RasterizerDefault.AntialiasedLineEnable = FALSE;
+		g_RasterizerDefault.ForcedSampleCount = 0;
+		g_RasterizerDefault.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+		g_RasterizerTwoSided = g_RasterizerDefault;
+		g_RasterizerTwoSided.CullMode = D3D12_CULL_MODE_NONE;
+
+		// Blend states
+		D3D12_BLEND_DESC alphaBlend = {};
+		alphaBlend.IndependentBlendEnable = FALSE;
+		alphaBlend.RenderTarget[0].BlendEnable = FALSE;
+		alphaBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		alphaBlend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		alphaBlend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		alphaBlend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		alphaBlend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+		alphaBlend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		alphaBlend.RenderTarget[0].RenderTargetWriteMask = 0;
+		g_BlendNoColorWrite = alphaBlend;
+
+		alphaBlend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		g_BlendDisable = alphaBlend;
+
+		alphaBlend.RenderTarget[0].BlendEnable = TRUE;
+		g_BlendTraditional = alphaBlend;
+
+		alphaBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		g_BlendPreMultiplied = alphaBlend;
+
+		alphaBlend.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+		g_BlendAdditive = alphaBlend;
+
+		alphaBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		g_BlendTraditionalAdditive = alphaBlend;
+
+		// Depth states
+		g_DepthStateDisabled.DepthEnable = FALSE;
+		g_DepthStateDisabled.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		g_DepthStateDisabled.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		g_DepthStateDisabled.StencilEnable = FALSE;
+		g_DepthStateDisabled.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+		g_DepthStateDisabled.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+		g_DepthStateDisabled.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		g_DepthStateDisabled.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+		g_DepthStateDisabled.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+		g_DepthStateDisabled.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+		g_DepthStateDisabled.BackFace = g_DepthStateDisabled.FrontFace;
+
+		g_DepthStateReadWrite = g_DepthStateDisabled;
+		g_DepthStateReadWrite.DepthEnable = TRUE;
+		g_DepthStateReadWrite.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		g_DepthStateReadWrite.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+
+		g_DepthStateReadOnly = g_DepthStateReadWrite;
+		g_DepthStateReadOnly.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+		g_DepthStateReadOnlyReversed = g_DepthStateReadOnly;
+		g_DepthStateReadOnlyReversed.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+
+		g_DepthStateTestEqual = g_DepthStateReadOnly;
+		g_DepthStateTestEqual.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+#ifndef RELEASE
+		GPU_Profiler::CreateResource();
+#endif
+		// Create graphics resources for text renderer
+		TextRenderer::Initialize();
 
         return S_OK;
     }
@@ -271,7 +392,7 @@ namespace Graphics
         g_cmdListMngr.IdleGPU();
 
         for ( uint8_t i = 0; i < Core::g_config.swapChainDesc.BufferCount; i++ )
-            g_pDisplayBuffers[i].Reset();
+			g_pDisplayPlanes[i].Destroy();
 
         V( g_swapChain->ResizeBuffers( Core::g_config.swapChainDesc.BufferCount,
                                        Core::g_config.swapChainDesc.Width,
@@ -281,16 +402,19 @@ namespace Graphics
 
         for ( uint8_t i = 0; i < Core::g_config.swapChainDesc.BufferCount; i++ )
         {
-            V( g_swapChain->GetBuffer( i, IID_PPV_ARGS( &g_pDisplayBuffers[i] ) ) );
-            DXDebugName( g_pDisplayBuffers[i] );
-            g_device->CreateRenderTargetView( g_pDisplayBuffers[i].Get(), nullptr, g_pDisplayPlaneHandlers[i] );
-        }
+			ComPtr<ID3D12Resource> DisplayPlane;
+			V(g_swapChain->GetBuffer(i, IID_PPV_ARGS(&DisplayPlane)));
+			g_pDisplayPlanes[i].CreateFromSwapChain(L"SwapChain Buffer", DisplayPlane.Detach());
+		}
 
         g_CurrentDPIdx = g_swapChain->GetCurrentBackBufferIndex();
     }
 
     void Present()
     {
+#ifndef RELEASE
+		GPU_Profiler::ProcessAndReadback();
+#endif
         HRESULT hr;
 
         DXGI_PRESENT_PARAMETERS param;

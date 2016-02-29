@@ -2,7 +2,11 @@
 
 #include "DX12Framework.h"
 #include "DescriptorHeap.h"
-#include "TextRenderer.h"
+//#include "TextRenderer.h"
+#include "GpuResource.h"
+#include "RootSignature.h"
+#include "PipelineState.h"
+#include "CommandContext.h"
 #include "Camera.h"
 
 using namespace DirectX;
@@ -28,14 +32,6 @@ private:
         XMFLOAT3 position;
     };
 
-    // Indices in the root parameter table.
-    enum RootParameters : uint8_t
-    {
-        RootParameterCBV = 0,
-        RootParameterSRV,
-        RootParameterUAV,
-        RootParametersCount
-    };
 
     uint32_t                            m_width;
     uint32_t                            m_height;
@@ -44,48 +40,23 @@ private:
     float                               m_camMaxOribtRadius;
     float                               m_camMinOribtRadius;
 
-    ID3D12CommandAllocator*             m_gfxcmdAllocator;
-    ID3D12CommandAllocator*             m_cptcmdAllocator;
-
-    // Pipeline objects.
-    D3D12_VIEWPORT                      m_viewport;
-    D3D12_RECT                          m_scissorRect;
-    ComPtr<ID3D12GraphicsCommandList>   m_graphicCmdList;
-    ComPtr<ID3D12RootSignature>         m_graphicsRootSignature;
-    ComPtr<ID3D12PipelineState>         m_pipelineState;
-    D3D12_CPU_DESCRIPTOR_HANDLE         m_dsvHandle;
-
-    DescriptorHandle                    m_srvHandle;
-    DescriptorHandle                    m_cbvHandle;
-    DescriptorHandle                    m_uavHandle;
-
-    // Compute objects.
-    ComPtr<ID3D12RootSignature>         m_computeRootSignature;
-    ComPtr<ID3D12GraphicsCommandList>   m_computeCmdList;
-    ComPtr<ID3D12PipelineState>         m_computeState;
-
-    // App resources.
-    ComPtr<ID3D12Resource>              m_depthBuffer;
-    ComPtr<ID3D12Resource>              m_constantBuffer;
-    ComPtr<ID3D12Resource>              m_vertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW            m_vertexBufferView;
-    ComPtr<ID3D12Resource>              m_indexBuffer;
-    D3D12_INDEX_BUFFER_VIEW             m_indexBufferView;
-    ComPtr<ID3D12Resource>              m_volumeBuffer;
+	DepthBuffer							m_DepthBuffer;
+	StructuredBuffer					m_VertexBuffer;
+	ByteAddressBuffer					m_IndexBuffer;
+	GraphicsPSO							m_GraphicsPSO;
+	ComputePSO							m_ComputePSO;
+	RootSignature						m_RootSignature;
+	StructuredBuffer					m_VolumeBuffer;
 
     OrbitCamera                         m_camera;
     struct ConstantBuffer*              m_pConstantBufferData;
-    uint8_t*                            m_pCbvDataBegin;
 
     uint32_t                            m_volumeWidth;
     uint32_t                            m_volumeHeight;
     uint32_t                            m_volumeDepth;
 
-    HRESULT LoadPipeline( ID3D12Device* m_device );
     HRESULT LoadAssets();
     HRESULT LoadSizeDependentResource();
 
     void ResetCameraView();
-    void PopulateGraphicsCommandList( uint32_t i );
-    void PopulateComputeCommandList( uint32_t i );
 };

@@ -4,7 +4,6 @@
 #include "DXHelper.h"
 #include <shellapi.h>
 
-#include "GPU_Profiler.h"
 #include "Graphics.h"
 
 namespace
@@ -88,7 +87,7 @@ namespace Core
                 _width = clientRect.right - clientRect.left;
                 _height = clientRect.bottom - clientRect.top;
                 if ( g_config.swapChainDesc.Width != _width || g_config.swapChainDesc.Height != _height )
-                    _resize.store( true, memory_order_release );
+                    _resize.store( true, std::memory_order_release );
             }
             return 0;
 
@@ -156,10 +155,7 @@ namespace Core
         HRESULT hr;
         // Initialize framework level graphics resource
         VRET( Graphics::CreateResource() );
-#ifndef RELEASE
-        // Initialize GPU profiler system
-        VRET( GPU_Profiler::CreateResource() );
-#endif
+
         // Initialize the sample. OnInit is defined in each child-implementation of DXSample.
         VRET( application.OnCreateResource() );
 
@@ -174,16 +170,12 @@ namespace Core
     void FrameworkRender( IDX12Framework& application )
     {
         application.OnRender();
-#ifndef RELEASE
-        GPU_Profiler::ProcessAndReadback();
-#endif
         Graphics::Present();
     }
 
     void FrameworkDestory( IDX12Framework& application )
     {
         application.OnDestroy();
-        GPU_Profiler::ShutDown();
         Graphics::Shutdown();
         MsgPrinting::Destory();
     }
@@ -238,9 +230,9 @@ namespace Core
                 SetCustomWindowText( buffer );
             }
 
-            if ( _resize.load( memory_order_acquire ) )
+            if ( _resize.load( std::memory_order_acquire ) )
             {
-                _resize.store( false, memory_order_relaxed );
+                _resize.store( false, std::memory_order_relaxed );
                 FrameworkResize( application );
             }
             FrameworkUpdate( application );

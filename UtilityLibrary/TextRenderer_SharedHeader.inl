@@ -9,8 +9,8 @@
 #define REGISTER(x) :register(x)
 #define STRUCT(x) x
 #else 
-typedef XMFLOAT2 float2;
-typedef XMFLOAT4 float4;
+typedef DirectX::XMFLOAT2 float2;
+typedef DirectX::XMFLOAT4 float4;
 typedef uint32_t uint;
 #define REGISTER(x)
 #define STRUCT(x) struct

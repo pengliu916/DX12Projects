@@ -2,7 +2,15 @@ struct VSOutput {
     float4 Position : SV_POSITION;
     float4 Color : COLOR;
 };
-float4x4 mtx;
+
+cbuffer ConstantBuffer:register(b0)
+{
+	float4x4 mtx;
+	float4x4 junk1;
+	float4 junk2;
+	int4 junk3;
+	int4 junk4[7];
+};
 
 VSOutput vsmain(
     float4 pos : POSITION,
