@@ -223,6 +223,7 @@ public:
 	void SetDynamicDescriptors(UINT RootIndex, UINT Offset, UINT Count, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[]);
 	void SetDynamicVB(UINT Slot, size_t NumVertices, size_t VertexStride, const void* VertexData);
 	void SetDynamicIB(size_t IndexCount, const uint16_t* IndexData);
+	void SetDynamicSRV(UINT RootIndex, size_t BufferSize, const void* BufferData);
 	void SetDynamicConstantBufferView(UINT RootIndex, size_t BufferSize, const void* BufferData);
 	void SetBufferSRV(UINT RootIndex, const GpuBuffer& SRV);
 	void SetBufferUAV(UINT RootIndex, const GpuBuffer& UAV);
@@ -328,6 +329,14 @@ inline void GraphicsContext::SetDynamicIB(size_t IndexCount, const uint16_t* Ind
 	m_CommandList->IASetIndexBuffer(&IBView);
 }
 
+inline void GraphicsContext::SetDynamicSRV(UINT RootIndex, size_t BufferSize, const void* BufferData)
+{
+	ASSERT(BufferData != nullptr && IsAligned(BufferData, 16));
+	DynAlloc cb = m_CpuLinearAllocator.Allocate(BufferSize);
+	memcpy(cb.m_pData, BufferData, BufferSize);
+	m_CommandList->SetGraphicsRootShaderResourceView(RootIndex, cb.m_GpuVirtualAddr);
+}
+
 inline void GraphicsContext::SetDynamicConstantBufferView(UINT RootIndex, size_t BufferSize, const void* BufferData)
 {
 	ASSERT(BufferData != nullptr && IsAligned(BufferData, 16));
@@ -418,6 +427,7 @@ public:
 	void SetConstants(UINT RootIndex, DWParam X, DWParam Y, DWParam Z, DWParam W);
 	void SetConstantBuffer(UINT RootIndex, D3D12_GPU_VIRTUAL_ADDRESS CBV);
 	void SetDynamicDescriptors(UINT RootIndex, UINT Offset, UINT Count, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[]);
+	void SetDynamicSRV(UINT RootIndex, size_t BufferSize, const void* BufferData);
 	void SetDynamicConstantBufferView(UINT RootIndex, size_t BufferSize, const void* BufferData);
 	void SetBufferSRV(UINT RootIndex, const GpuBuffer& SRV);
 	void SetBufferUAV(UINT RootIndex, const GpuBuffer& UAV);
@@ -483,6 +493,14 @@ inline void ComputeContext::SetConstantBuffer(UINT RootIndex, D3D12_GPU_VIRTUAL_
 inline void ComputeContext::SetDynamicDescriptors(UINT RootIndex, UINT Offset, UINT Count, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[])
 {
 	m_DynamicDescriptorHeap.SetComputeDescriptorHandles(RootIndex, Offset, Count, Handles);
+}
+
+inline void ComputeContext::SetDynamicSRV(UINT RootIndex, size_t BufferSize, const void* BufferData)
+{
+	ASSERT(BufferData != nullptr && IsAligned(BufferData, 16));
+	DynAlloc cb = m_CpuLinearAllocator.Allocate(BufferSize);
+	memcpy(cb.m_pData, BufferData, BufferSize);
+	m_CommandList->SetComputeRootShaderResourceView(RootIndex, cb.m_GpuVirtualAddr);
 }
 
 inline void ComputeContext::SetDynamicConstantBufferView(UINT RootIndex, size_t BufferSize, const void* BufferData)

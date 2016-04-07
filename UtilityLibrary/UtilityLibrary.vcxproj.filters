@@ -95,5 +95,6 @@
   <ItemGroup>
     <CustomBuild Include="TextRenderer_SharedHeader.inl" />
     <CustomBuild Include="TextRenderer.hlsl" />
+    <CustomBuild Include="GPU_Profiler.hlsl" />
   </ItemGroup>
 </Project>

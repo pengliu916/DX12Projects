@@ -32,7 +32,7 @@ private:
         XMFLOAT3 position;
     };
 
-
+	bool								m_OneContext;
     uint32_t                            m_width;
     uint32_t                            m_height;
 
@@ -44,6 +44,7 @@ private:
 	StructuredBuffer					m_VertexBuffer;
 	ByteAddressBuffer					m_IndexBuffer;
 	GraphicsPSO							m_GraphicsPSO;
+	GraphicsPSO							m_GraphicsComputePSO;
 	ComputePSO							m_ComputePSO;
 	RootSignature						m_RootSignature;
 	StructuredBuffer					m_VolumeBuffer;

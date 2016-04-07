@@ -2,7 +2,7 @@
 #include "RotatingCube.h"
 
 RotatingCube::RotatingCube( uint32_t width, uint32_t height, std::wstring name ) :
-    m_DepthBuffer(DepthBuffer(1.0))
+    m_DepthBuffer()
 {
     m_width = width;
     m_height = height;
@@ -75,16 +75,9 @@ HRESULT RotatingCube::LoadAssets()
 	};
 
 	m_GraphicsPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
-	m_GraphicsPSO.SetRasterizerState(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
-	m_GraphicsPSO.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
-
-	CD3DX12_DEPTH_STENCIL_DESC depthStencilDesc(D3D12_DEFAULT);
-	depthStencilDesc.DepthEnable = TRUE;
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	depthStencilDesc.StencilEnable = FALSE;
-
-	m_GraphicsPSO.SetDepthStencilState(depthStencilDesc);
+	m_GraphicsPSO.SetRasterizerState(Graphics::g_RasterizerDefaultCW);
+	m_GraphicsPSO.SetBlendState(Graphics::g_BlendDisable);
+	m_GraphicsPSO.SetDepthStencilState(Graphics::g_DepthStateReadWrite);
 	m_GraphicsPSO.SetSampleMask(UINT_MAX);
 	m_GraphicsPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	DXGI_FORMAT ColorFormat = Graphics::g_pDisplayPlanes[0].GetFormat();
@@ -138,13 +131,6 @@ void RotatingCube::OnUpdate()
 {
     m_timer.Tick( NULL );
     m_camera.ProcessInertia();
-    // Temporary procedural for display GPU timing, should be removed once
-    // GPU_Profiler::Draw() have been implemented
-#ifndef RELEASE
-    wchar_t temp[128];
-    uint32_t n = GPU_Profiler::GetTimingStr( 0, temp );
-    swprintf( Core::g_strCustom, L"%s\0", temp );
-#endif
 }
 
 // Render the scene.

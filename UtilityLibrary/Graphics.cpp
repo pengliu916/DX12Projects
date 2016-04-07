@@ -76,6 +76,7 @@ namespace Graphics
 	SamplerDescriptor				g_SamplerLinearClamp;
 
 	D3D12_RASTERIZER_DESC			g_RasterizerDefault;
+	D3D12_RASTERIZER_DESC			g_RasterizerDefaultCW;
 	D3D12_RASTERIZER_DESC			g_RasterizerTwoSided;
 
 	D3D12_BLEND_DESC				g_BlendNoColorWrite;
@@ -290,6 +291,9 @@ namespace Graphics
 		g_RasterizerDefault.AntialiasedLineEnable = FALSE;
 		g_RasterizerDefault.ForcedSampleCount = 0;
 		g_RasterizerDefault.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+		g_RasterizerDefaultCW = g_RasterizerDefault;
+		g_RasterizerDefaultCW.FrontCounterClockwise = FALSE;
 
 		g_RasterizerTwoSided = g_RasterizerDefault;
 		g_RasterizerTwoSided.CullMode = D3D12_CULL_MODE_NONE;

@@ -5,16 +5,17 @@ class GraphicsContext;
 
 namespace GPU_Profiler
 {
-    const uint16_t MAX_TIMER_NAME_LENGTH = 64;
-    const uint16_t MAX_TIMER_COUNT = 512;
+    const uint8_t MAX_TIMER_NAME_LENGTH = 32;
+    const uint8_t MAX_TIMER_COUNT = 32;
 
 	void Initialize();
     HRESULT CreateResource();
     void ShutDown();
     void ProcessAndReadback();
+	uint16_t FillVertexData();
 	void DrawStats(GraphicsContext& gfxContext);
-    double ReadTimer( uint32_t idx, double* start = nullptr, double* stop = nullptr );
-    uint32_t GetTimingStr( uint32_t idx, wchar_t* outStr );
+    double ReadTimer( uint8_t idx, double* start = nullptr, double* stop = nullptr );
+    uint16_t GetTimingStr( uint8_t idx, wchar_t* outStr );
 };
 
 class GPUProfileScope

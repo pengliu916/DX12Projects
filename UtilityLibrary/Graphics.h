@@ -32,6 +32,7 @@ namespace Graphics
 	extern SamplerDescriptor						g_SamplerLinearClamp;
 
 	extern D3D12_RASTERIZER_DESC					g_RasterizerDefault;
+	extern D3D12_RASTERIZER_DESC					g_RasterizerDefaultCW;
 	extern D3D12_RASTERIZER_DESC					g_RasterizerTwoSided;
 
 	extern D3D12_BLEND_DESC							g_BlendNoColorWrite;
