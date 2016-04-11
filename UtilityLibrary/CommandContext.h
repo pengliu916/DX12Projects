@@ -99,6 +99,10 @@ public:
 	void SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE Type, ID3D12DescriptorHeap* HeapPtr);
 	void SetDescriptorHeaps(UINT HeapCount, D3D12_DESCRIPTOR_HEAP_TYPE Type[], ID3D12DescriptorHeap* HeapPtrs[]);
 
+	// For resource view (SRV, CBV, RTV...) allocation
+	LinearAllocator m_CpuLinearAllocator; 
+	LinearAllocator m_GpuLinearAllocator;
+
 protected:
 	void BindDescriptorHeaps();
 
@@ -119,10 +123,6 @@ protected:
 	UINT m_NumBarriersToFlush;
 
 	ID3D12DescriptorHeap* m_CurrentDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-
-	// For resource view (SRV, CBV, RTV...) allocation
-	LinearAllocator m_CpuLinearAllocator; 
-	LinearAllocator m_GpuLinearAllocator;
 
 	std::wstring m_ID;
 
@@ -222,7 +222,9 @@ public:
 	void SetConstantBuffer(UINT RootIndex, D3D12_GPU_VIRTUAL_ADDRESS CBV);
 	void SetDynamicDescriptors(UINT RootIndex, UINT Offset, UINT Count, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[]);
 	void SetDynamicVB(UINT Slot, size_t NumVertices, size_t VertexStride, const void* VertexData);
+	void SetDynamicVB(UINT Slot, D3D12_VERTEX_BUFFER_VIEW& VBView);
 	void SetDynamicIB(size_t IndexCount, const uint16_t* IndexData);
+	void SetDynamicIB(D3D12_INDEX_BUFFER_VIEW& IBView);
 	void SetDynamicSRV(UINT RootIndex, size_t BufferSize, const void* BufferData);
 	void SetDynamicConstantBufferView(UINT RootIndex, size_t BufferSize, const void* BufferData);
 	void SetBufferSRV(UINT RootIndex, const GpuBuffer& SRV);
@@ -306,26 +308,36 @@ inline void GraphicsContext::SetDynamicDescriptors(UINT RootIndex, UINT Offset, 
 inline void GraphicsContext::SetDynamicVB(UINT Slot, size_t NumVertices, size_t VertexStride, const void* VertexData)
 {
 	size_t BufferSize = NumVertices * VertexStride;
-	DynAlloc vb = Graphics::g_CpuLinearAllocator.Allocate(BufferSize);
-	memcpy(vb.m_pData, VertexData, BufferSize);
+	DynAlloc vb = m_CpuLinearAllocator.Allocate(BufferSize);
+	memcpy(vb.DataPtr, VertexData, BufferSize);
 
 	D3D12_VERTEX_BUFFER_VIEW VBView;
-	VBView.BufferLocation = vb.m_GpuVirtualAddr;
+	VBView.BufferLocation = vb.GpuAddress;
 	VBView.SizeInBytes = (UINT)BufferSize;
 	VBView.StrideInBytes = (UINT)VertexStride;
+	m_CommandList->IASetVertexBuffers(Slot, 1, &VBView);
+}
+
+inline void GraphicsContext::SetDynamicVB(UINT Slot, D3D12_VERTEX_BUFFER_VIEW& VBView)
+{
 	m_CommandList->IASetVertexBuffers(Slot, 1, &VBView);
 }
 
 inline void GraphicsContext::SetDynamicIB(size_t IndexCount, const uint16_t* IndexData)
 {
 	size_t BufferSize = IndexCount * sizeof(uint16_t);
-	DynAlloc ib = Graphics::g_CpuLinearAllocator.Allocate(BufferSize);
-	memcpy(ib.m_pData, IndexData, BufferSize);
+	DynAlloc ib = m_CpuLinearAllocator.Allocate(BufferSize);
+	memcpy(ib.DataPtr, IndexData, BufferSize);
 
 	D3D12_INDEX_BUFFER_VIEW IBView;
-	IBView.BufferLocation = ib.m_GpuVirtualAddr;
+	IBView.BufferLocation = ib.GpuAddress;
 	IBView.SizeInBytes = (UINT)BufferSize;
 	IBView.Format = DXGI_FORMAT_R16_UINT;
+	m_CommandList->IASetIndexBuffer(&IBView);
+}
+
+inline void GraphicsContext::SetDynamicIB(D3D12_INDEX_BUFFER_VIEW& IBView)
+{
 	m_CommandList->IASetIndexBuffer(&IBView);
 }
 
@@ -333,16 +345,16 @@ inline void GraphicsContext::SetDynamicSRV(UINT RootIndex, size_t BufferSize, co
 {
 	ASSERT(BufferData != nullptr && IsAligned(BufferData, 16));
 	DynAlloc cb = m_CpuLinearAllocator.Allocate(BufferSize);
-	memcpy(cb.m_pData, BufferData, BufferSize);
-	m_CommandList->SetGraphicsRootShaderResourceView(RootIndex, cb.m_GpuVirtualAddr);
+	memcpy(cb.DataPtr, BufferData, BufferSize);
+	m_CommandList->SetGraphicsRootShaderResourceView(RootIndex, cb.GpuAddress);
 }
 
 inline void GraphicsContext::SetDynamicConstantBufferView(UINT RootIndex, size_t BufferSize, const void* BufferData)
 {
 	ASSERT(BufferData != nullptr && IsAligned(BufferData, 16));
-	DynAlloc cb = Graphics::g_CpuLinearAllocator.Allocate(BufferSize);
-	memcpy(cb.m_pData, BufferData, BufferSize);
-	m_CommandList->SetGraphicsRootConstantBufferView(RootIndex, cb.m_GpuVirtualAddr);
+	DynAlloc cb = m_CpuLinearAllocator.Allocate(BufferSize);
+	memcpy(cb.DataPtr, BufferData, BufferSize);
+	m_CommandList->SetGraphicsRootConstantBufferView(RootIndex, cb.GpuAddress);
 }
 
 inline void GraphicsContext::SetBufferSRV(UINT RootIndex, const GpuBuffer& SRV)
@@ -499,16 +511,16 @@ inline void ComputeContext::SetDynamicSRV(UINT RootIndex, size_t BufferSize, con
 {
 	ASSERT(BufferData != nullptr && IsAligned(BufferData, 16));
 	DynAlloc cb = m_CpuLinearAllocator.Allocate(BufferSize);
-	memcpy(cb.m_pData, BufferData, BufferSize);
-	m_CommandList->SetComputeRootShaderResourceView(RootIndex, cb.m_GpuVirtualAddr);
+	memcpy(cb.DataPtr, BufferData, BufferSize);
+	m_CommandList->SetComputeRootShaderResourceView(RootIndex, cb.GpuAddress);
 }
 
 inline void ComputeContext::SetDynamicConstantBufferView(UINT RootIndex, size_t BufferSize, const void* BufferData)
 {
 	ASSERT(BufferData != nullptr && IsAligned(BufferData, 16));
-	DynAlloc cb = Graphics::g_CpuLinearAllocator.Allocate(BufferSize);
-	memcpy(cb.m_pData, BufferData, BufferSize);
-	m_CommandList->SetComputeRootConstantBufferView(RootIndex, cb.m_GpuVirtualAddr);
+	DynAlloc cb = m_CpuLinearAllocator.Allocate(BufferSize);
+	memcpy(cb.DataPtr, BufferData, BufferSize);
+	m_CommandList->SetComputeRootConstantBufferView(RootIndex, cb.GpuAddress);
 }
 
 inline void ComputeContext::SetBufferSRV(UINT RootIndex, const GpuBuffer& SRV)

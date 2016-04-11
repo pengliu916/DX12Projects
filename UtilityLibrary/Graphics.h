@@ -4,6 +4,7 @@ class CmdListMngr;
 class ContextManager;
 class DescriptorHeap;
 class LinearAllocator;
+class CommandContext;
 class ColorBuffer;
 class SamplerDesc;
 class SamplerDescriptor;
@@ -21,8 +22,6 @@ namespace Graphics
     extern DescriptorHeap*							g_pSMPDescriptorHeap;
     extern DescriptorHeap*							g_pCSUDescriptorHeap;
 	extern ColorBuffer*								g_pDisplayPlanes;
-    extern LinearAllocator							g_CpuLinearAllocator;
-    extern LinearAllocator							g_GpuLinearAllocator;
     extern uint32_t									g_CurrentDPIdx;
 
     extern D3D12_VIEWPORT							g_DisplayPlaneViewPort;
@@ -30,6 +29,8 @@ namespace Graphics
 
 	extern SamplerDesc								g_SamplerLinearClampDesc;
 	extern SamplerDescriptor						g_SamplerLinearClamp;
+	extern SamplerDesc								g_SamplerLinearWrapDesc;
+	extern SamplerDescriptor						g_SamplerLinearWrap;
 
 	extern D3D12_RASTERIZER_DESC					g_RasterizerDefault;
 	extern D3D12_RASTERIZER_DESC					g_RasterizerDefaultCW;
@@ -51,7 +52,7 @@ namespace Graphics
     void Init();
     void Shutdown();
     void Resize();
-    void Present();
+    void Present(CommandContext& EngineContext);
     HRESULT CreateResource();
     HRESULT CompileShaderFromFile( LPCWSTR pFileName, const D3D_SHADER_MACRO* pDefines, ID3DInclude* pInclude,
                                    LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob** ppCode );

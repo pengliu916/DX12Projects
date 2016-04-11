@@ -22,7 +22,7 @@ public:
     virtual HRESULT OnCreateResource();
     virtual HRESULT OnSizeChanged();
     virtual void OnUpdate();
-    virtual void OnRender();
+    virtual void OnRender(CommandContext& EngineContext);
     virtual void OnDestroy();
     virtual bool OnEvent( MSG* msg );
 
@@ -32,7 +32,8 @@ private:
         XMFLOAT3 position;
     };
 
-	bool								m_OneContext;
+	int									m_OneContext;
+	int									m_SphereAnimation;
     uint32_t                            m_width;
     uint32_t                            m_height;
 
@@ -58,6 +59,7 @@ private:
 
     HRESULT LoadAssets();
     HRESULT LoadSizeDependentResource();
+	void CreateVolume(bool Update = false);
 
     void ResetCameraView();
 };

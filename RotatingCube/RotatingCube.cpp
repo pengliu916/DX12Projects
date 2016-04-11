@@ -37,6 +37,10 @@ void RotatingCube::OnConfiguration()
     Core::g_config.swapChainDesc.Height = m_height;
 }
 
+void RotatingCube::OnInit()
+{
+}
+
 HRESULT RotatingCube::OnCreateResource()
 {
     HRESULT hr;
@@ -134,7 +138,7 @@ void RotatingCube::OnUpdate()
 }
 
 // Render the scene.
-void RotatingCube::OnRender()
+void RotatingCube::OnRender(CommandContext& EngineContext)
 {
     // Record all the commands we need to render the scene into the command list.
 	XMMATRIX view = m_camera.View();
@@ -156,7 +160,6 @@ void RotatingCube::OnRender()
 		gfxContext.SetRootSignature(m_RootSignature);
 		gfxContext.SetPipelineState(m_GraphicsPSO);
 		gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		gfxContext.TransitionResource(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], D3D12_RESOURCE_STATE_RENDER_TARGET);
 		gfxContext.SetDynamicConstantBufferView(0, sizeof(CBuffer), (void*)(cbufferData));
 		gfxContext.SetRenderTargets(1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], &m_DepthBuffer);
 		gfxContext.SetViewport(Graphics::g_DisplayPlaneViewPort);
@@ -164,12 +167,12 @@ void RotatingCube::OnRender()
 		gfxContext.SetVertexBuffer(0, m_VertexBuffer.VertexBufferView());
 		gfxContext.SetIndexBuffer(m_IndexBuffer.IndexBufferView());
 		gfxContext.DrawIndexed(36);
+	}
 
 		GPU_Profiler::DrawStats(gfxContext);
 
-		gfxContext.TransitionResource(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], D3D12_RESOURCE_STATE_PRESENT);
-	}
 	gfxContext.Finish();
+	
 }
 
 HRESULT RotatingCube::OnSizeChanged()
@@ -188,6 +191,9 @@ void RotatingCube::OnDestroy()
 
 bool RotatingCube::OnEvent( MSG* msg )
 {
+	/*if (ImGui_ImplDX12_WndProcHandler(Core::g_hwnd, msg->message, msg->wParam, msg->lParam))
+		return false;*/
+	
     switch ( msg->message )
     {
     case WM_MOUSEWHEEL:

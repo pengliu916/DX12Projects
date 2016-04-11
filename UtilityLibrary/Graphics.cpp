@@ -44,7 +44,8 @@ namespace
             if ( SUCCEEDED( D3D12CreateDevice( adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof( ID3D12Device ), nullptr ) ) )
             {
                 adapter->GetDesc1( &desc );
-                PRINTINFO( L"D3D12-capable hardware found (selected):  %s (%u MB)", desc.Description, desc.DedicatedVideoMemory >> 20 );
+				Core::g_stats.totalGpuMemInByte = desc.DedicatedVideoMemory;
+				PRINTINFO(L"D3D12-capable hardware found (selected):  %s (%u MB)", desc.Description, desc.DedicatedVideoMemory >> 20);
                 if ( !found ) *ppAdapter = adapter.Detach();
                 found = true;
             }
@@ -65,8 +66,6 @@ namespace Graphics
     DescriptorHeap*                 g_pDSVDescriptorHeap;
     DescriptorHeap*                 g_pSMPDescriptorHeap;
     DescriptorHeap*                 g_pCSUDescriptorHeap;
-    LinearAllocator                 g_CpuLinearAllocator( kCpuWritable );
-    LinearAllocator                 g_GpuLinearAllocator( kGpuExclusive );
 	ColorBuffer*					g_pDisplayPlanes;
     uint32_t                        g_CurrentDPIdx;
     D3D12_VIEWPORT                  g_DisplayPlaneViewPort;
@@ -74,6 +73,8 @@ namespace Graphics
 
 	SamplerDesc						g_SamplerLinearClampDesc;
 	SamplerDescriptor				g_SamplerLinearClamp;
+	SamplerDesc						g_SamplerLinearWrapDesc;
+	SamplerDescriptor				g_SamplerLinearWrap;
 
 	D3D12_RASTERIZER_DESC			g_RasterizerDefault;
 	D3D12_RASTERIZER_DESC			g_RasterizerDefaultCW;
@@ -278,6 +279,9 @@ namespace Graphics
 		g_SamplerLinearClampDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 		g_SamplerLinearClampDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
 		g_SamplerLinearClamp.Create(g_SamplerLinearClampDesc);
+		g_SamplerLinearWrapDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		g_SamplerLinearWrapDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+		g_SamplerLinearWrap.Create(g_SamplerLinearWrapDesc);
 		
 		// Rasterizer states
 		g_RasterizerDefault.FillMode = D3D12_FILL_MODE_SOLID;
@@ -414,11 +418,8 @@ namespace Graphics
         g_CurrentDPIdx = g_swapChain->GetCurrentBackBufferIndex();
     }
 
-    void Present()
+    void Present(CommandContext& EngineContext)
     {
-#ifndef RELEASE
-		GPU_Profiler::ProcessAndReadback();
-#endif
         HRESULT hr;
 
         DXGI_PRESENT_PARAMETERS param;
@@ -426,7 +427,10 @@ namespace Graphics
         param.pDirtyRects = NULL;
         param.pScrollRect = NULL;
         param.pScrollOffset = NULL;
+		
 
+		EngineContext.TransitionResource(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], D3D12_RESOURCE_STATE_PRESENT);
+		EngineContext.Finish();
         // Present the frame.
         V( g_swapChain->Present1( Core::g_config.vsync ? 1 : 0, 0, &param ) );
         g_CurrentDPIdx = ( g_CurrentDPIdx + 1 ) % Core::g_config.swapChainDesc.BufferCount;

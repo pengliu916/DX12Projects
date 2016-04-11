@@ -1,13 +1,15 @@
 
 #include "stdafx.h"
 #include "VolumetricAnimation.h"
+#include <ppl.h>
 
 #include "VolumetricAnimation_SharedHeader.inl"
 
 VolumetricAnimation::VolumetricAnimation(uint32_t width, uint32_t height, std::wstring name) :
 	m_DepthBuffer()
 {
-	m_OneContext = false;
+	m_OneContext = 0;
+	m_SphereAnimation = 0;
 	m_volumeWidth = VOLUME_SIZE_X;
 	m_volumeHeight = VOLUME_SIZE_Y;
 	m_volumeDepth = VOLUME_SIZE_Z;
@@ -134,46 +136,7 @@ HRESULT VolumetricAnimation::LoadAssets()
 	m_ComputePSO.Finalize();
 	m_GraphicsPSO.Finalize();
 
-	uint32_t volumeBufferElementCount = m_volumeDepth*m_volumeHeight*m_volumeWidth;
-	uint8_t* volumeBuffer = (uint8_t*)malloc(volumeBufferElementCount * 4 * sizeof(uint8_t));
-
-	float a = m_volumeWidth / 2.f;
-	float b = m_volumeHeight / 2.f;
-	float c = m_volumeDepth / 2.f;
-#if SPHERE_VOLUME_ANIMATION
-	float radius = sqrt(a*a + b*b + c*c);
-#else
-	float radius = (abs(a) + abs(b) + abs(c));
-#endif
-	XMINT4 bg = m_pConstantBufferData->bgCol;
-	uint32_t bgMax = max(max(bg.x, bg.y), bg.z);
-	m_pConstantBufferData->bgCol.w = bgMax;
-	for (uint32_t z = 0; z < m_volumeDepth; z++)
-		for (uint32_t y = 0; y < m_volumeHeight; y++)
-			for (uint32_t x = 0; x < m_volumeWidth; x++)
-			{
-				float _x = x - m_volumeWidth / 2.f;
-				float _y = y - m_volumeHeight / 2.f;
-				float _z = z - m_volumeDepth / 2.f;
-#if SPHERE_VOLUME_ANIMATION
-				float currentRaidus = sqrt(_x*_x + _y*_y + _z*_z);
-#else
-				float currentRaidus = (abs(_x) + abs(_y) + abs(_z));
-#endif
-				float scale = currentRaidus / radius;
-				uint32_t maxColCnt = 4;
-				assert(maxColCnt < COLOR_COUNT);
-				float currentScale = scale * maxColCnt + 0.1f;
-				uint32_t idx = COLOR_COUNT - (uint32_t)(currentScale)-1;
-				float intensity = currentScale - (uint32_t)currentScale;
-				uint32_t col = (uint32_t)(intensity * (255 - bgMax)) + 1;
-				volumeBuffer[(x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth) * 4 + 0] = bg.x + col * shiftingColVals[idx].x;
-				volumeBuffer[(x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth) * 4 + 1] = bg.y + col * shiftingColVals[idx].y;
-				volumeBuffer[(x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth) * 4 + 2] = bg.z + col * shiftingColVals[idx].z;
-				volumeBuffer[(x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth) * 4 + 3] = shiftingColVals[idx].w;
-			}
-
-	m_VolumeBuffer.Create(L"Volume Buffer", volumeBufferElementCount, 4 * sizeof(uint8_t), volumeBuffer);
+	CreateVolume();
 
 	// Define the geometry for a triangle.
 	Vertex cubeVertices[] =
@@ -216,14 +179,83 @@ HRESULT VolumetricAnimation::LoadSizeDependentResource()
 	return S_OK;
 }
 
+void VolumetricAnimation::CreateVolume(bool Update /* = false */)
+{
+	uint32_t volumeBufferElementCount = m_volumeDepth*m_volumeHeight*m_volumeWidth;
+	uint8_t* volumeBuffer = (uint8_t*)malloc(volumeBufferElementCount * 4 * sizeof(uint8_t));
+
+	float a = m_volumeWidth / 2.f;
+	float b = m_volumeHeight / 2.f;
+	float c = m_volumeDepth / 2.f;
+
+	int SphereAnimation = m_SphereAnimation;
+	float radius = SphereAnimation ? sqrt(a*a + b*b + c*c) : (abs(a) + abs(b) + abs(c));
+
+	XMINT4 bg = m_pConstantBufferData->bgCol;
+	uint32_t bgMax = max(max(bg.x, bg.y), bg.z);
+	m_pConstantBufferData->bgCol.w = bgMax;
+
+	Concurrency::parallel_for(uint32_t(0), m_volumeDepth, [&](uint32_t z)
+	{
+		for (uint32_t y = 0; y < m_volumeHeight; y++)
+			for (uint32_t x = 0; x < m_volumeWidth; x++)
+			{
+				float _x = x - m_volumeWidth / 2.f;
+				float _y = y - m_volumeHeight / 2.f;
+				float _z = z - m_volumeDepth / 2.f;
+				float currentRaidus = SphereAnimation ? sqrt(_x*_x + _y*_y + _z*_z) : (abs(_x) + abs(_y) + abs(_z));
+				float scale = currentRaidus / radius;
+				uint32_t maxColCnt = 4;
+				assert(maxColCnt < COLOR_COUNT);
+				float currentScale = scale * maxColCnt + 0.1f;
+				uint32_t idx = COLOR_COUNT - (uint32_t)(currentScale)-1;
+				float intensity = currentScale - (uint32_t)currentScale;
+				uint32_t col = (uint32_t)(intensity * (255 - bgMax)) + 1;
+				volumeBuffer[(x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth) * 4 + 0] = bg.x + col * shiftingColVals[idx].x;
+				volumeBuffer[(x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth) * 4 + 1] = bg.y + col * shiftingColVals[idx].y;
+				volumeBuffer[(x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth) * 4 + 2] = bg.z + col * shiftingColVals[idx].z;
+				volumeBuffer[(x + y*m_volumeWidth + z*m_volumeHeight*m_volumeWidth) * 4 + 3] = shiftingColVals[idx].w;
+			}
+	});
+	if (!Update)
+		m_VolumeBuffer.Create(L"Volume Buffer", volumeBufferElementCount, 4 * sizeof(uint8_t), volumeBuffer);
+	else
+	{
+		Graphics::g_cmdListMngr.IdleGPU();
+		CommandContext::InitializeBuffer(m_VolumeBuffer, volumeBuffer, volumeBufferElementCount * 4 * sizeof(uint8_t));
+	}
+	delete volumeBuffer;
+}
+
 // Update frame-based values.
 void VolumetricAnimation::OnUpdate()
 {
 	m_camera.ProcessInertia();
+	static bool showPenal = true;
+	if (ImGui::Begin("VolumetricAnimation", &showPenal))
+	{
+		ImGui::BeginGroup();
+		ImGui::RadioButton("Use one context", &m_OneContext, 1); ImGui::SameLine();
+		ImGui::RadioButton("Use mult-context & sync", &m_OneContext, 0);
+		ImGui::EndGroup();
+		ImGui::Separator();
+
+		static int previousAnimation = m_SphereAnimation;
+		if (previousAnimation != m_SphereAnimation)
+		{
+			previousAnimation = m_SphereAnimation;
+			CreateVolume(true);
+		}
+		ImGui::BeginGroup();
+		ImGui::RadioButton("Sphere Animation", &m_SphereAnimation, 1); ImGui::SameLine();
+		ImGui::RadioButton("Cube Animation", &m_SphereAnimation, 0);
+		ImGui::EndGroup();
+	}
+	ImGui::End();
 }
 
 // Render the scene.
-void VolumetricAnimation::OnRender()
+void VolumetricAnimation::OnRender(CommandContext& EngineContext)
 {
 	XMMATRIX view = m_camera.View();
 	XMMATRIX proj = m_camera.Projection();
@@ -233,109 +265,51 @@ void VolumetricAnimation::OnRender()
 	m_pConstantBufferData->wvp = XMMatrixMultiply(XMMatrixMultiply(world, view), proj);
 	XMStoreFloat4(&m_pConstantBufferData->viewPos, m_camera.Eye());
 
-	if (!m_OneContext)
+	ComputeContext& cptContext = m_OneContext ? EngineContext.GetComputeContext() : ComputeContext::Begin(L"Update Volume");
 	{
-		ComputeContext& cptContext = ComputeContext::Begin(L"Update Volume");
-		{
-			GPU_PROFILE(cptContext, L"Updating");
-			cptContext.SetRootSignature(m_RootSignature);
-			cptContext.SetPipelineState(m_ComputePSO);
-			cptContext.TransitionResource(m_VolumeBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			cptContext.SetDynamicConstantBufferView(0, sizeof(ConstantBuffer), m_pConstantBufferData);
-			cptContext.SetBufferUAV(2, m_VolumeBuffer);
-			cptContext.Dispatch(m_volumeWidth / THREAD_X, m_volumeHeight / THREAD_Y, m_volumeDepth / THREAD_Z);
-		}
+		GPU_PROFILE(cptContext, L"Volume Animation Updating");
+		cptContext.SetRootSignature(m_RootSignature);
+		cptContext.SetPipelineState(m_ComputePSO);
+		cptContext.TransitionResource(m_VolumeBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		cptContext.SetDynamicConstantBufferView(0, sizeof(ConstantBuffer), m_pConstantBufferData);
+		cptContext.SetBufferUAV(2, m_VolumeBuffer);
+		cptContext.Dispatch(m_volumeWidth / THREAD_X, m_volumeHeight / THREAD_Y, m_volumeDepth / THREAD_Z);
+	}
+	if (!m_OneContext)
 		cptContext.Finish(true);
 
-		GraphicsContext& gfxContext = GraphicsContext::Begin(L"Render Volume");
-		{
-
-			GPU_PROFILE(gfxContext, L"Rendering");
-
-			gfxContext.ClearColor(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx]);
-			gfxContext.ClearDepth(m_DepthBuffer);
-			gfxContext.SetRootSignature(m_RootSignature);
-			gfxContext.SetPipelineState(m_GraphicsPSO);
-			gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			gfxContext.TransitionResource(m_VolumeBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
-			gfxContext.TransitionResource(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], D3D12_RESOURCE_STATE_RENDER_TARGET);
-			gfxContext.SetDynamicConstantBufferView(0, sizeof(ConstantBuffer), m_pConstantBufferData);
-			gfxContext.SetBufferSRV(1, m_VolumeBuffer);
-			gfxContext.SetRenderTargets(1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], &m_DepthBuffer);
-			gfxContext.SetViewport(Graphics::g_DisplayPlaneViewPort);
-			gfxContext.SetScisor(Graphics::g_DisplayPlaneScissorRect);
-			gfxContext.SetVertexBuffer(0, m_VertexBuffer.VertexBufferView());
-			gfxContext.SetIndexBuffer(m_IndexBuffer.IndexBufferView());
-			gfxContext.DrawIndexed(36);
-
-			TextContext Text(gfxContext);
-			Text.Begin();
-			Text.SetViewSize((float)Core::g_config.swapChainDesc.Width, (float)Core::g_config.swapChainDesc.Height);
-			Text.SetFont(L"xerox.fnt");
-			Text.ResetCursor(10, 80);
-			Text.SetTextSize(20.f);
-			Text.DrawString("Use 's' to switch between using one cmdqueue or using two cmdqueue and sync\n");
-			Text.NewLine();
-			Text.DrawString(m_OneContext ? "Current State: Using one cmdqueue" : "Current State: Using two cmdqueue and sync");
-			Text.End();
-
-			GPU_Profiler::DrawStats(gfxContext);
-
-			gfxContext.TransitionResource(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], D3D12_RESOURCE_STATE_PRESENT);
-		}
-		gfxContext.Finish();
-	}
-	else
+	GraphicsContext& gfxContext = m_OneContext ? EngineContext.GetGraphicsContext() : GraphicsContext::Begin(L"Render Volume");
 	{
-		CommandContext& cmdContext = CommandContext::Begin(L"Update&Render");
-		ComputeContext& cptContext = cmdContext.GetComputeContext();
-		{
-			GPU_PROFILE(cptContext, L"Updating");
-			cptContext.SetRootSignature(m_RootSignature);
-			cptContext.SetPipelineState(m_ComputePSO);
-			cptContext.TransitionResource(m_VolumeBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			cptContext.SetDynamicConstantBufferView(0, sizeof(ConstantBuffer), m_pConstantBufferData);
-			cptContext.SetBufferUAV(2, m_VolumeBuffer);
-			cptContext.Dispatch(m_volumeWidth / THREAD_X, m_volumeHeight / THREAD_Y, m_volumeDepth / THREAD_Z);
-		}
+		GPU_PROFILE(gfxContext, L"Rendering");
 
-		GraphicsContext& gfxContext = cmdContext.GetGraphicsContext();
-		{
-			GPU_PROFILE(gfxContext, L"Rendering");
+		gfxContext.ClearColor(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx]);
+		gfxContext.ClearDepth(m_DepthBuffer);
+		gfxContext.SetRootSignature(m_RootSignature);
+		gfxContext.SetPipelineState(m_GraphicsPSO);
+		gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		gfxContext.TransitionResource(m_VolumeBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+		gfxContext.SetDynamicConstantBufferView(0, sizeof(ConstantBuffer), m_pConstantBufferData);
+		gfxContext.SetBufferSRV(1, m_VolumeBuffer);
+		gfxContext.SetRenderTargets(1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], &m_DepthBuffer);
+		gfxContext.SetViewport(Graphics::g_DisplayPlaneViewPort);
+		gfxContext.SetScisor(Graphics::g_DisplayPlaneScissorRect);
+		gfxContext.SetVertexBuffer(0, m_VertexBuffer.VertexBufferView());
+		gfxContext.SetIndexBuffer(m_IndexBuffer.IndexBufferView());
+		gfxContext.DrawIndexed(36);
 
-			gfxContext.ClearColor(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx]);
-			gfxContext.ClearDepth(m_DepthBuffer);
-			gfxContext.SetRootSignature(m_RootSignature);
-			gfxContext.SetPipelineState(m_GraphicsPSO);
-			gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			gfxContext.TransitionResource(m_VolumeBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
-			gfxContext.TransitionResource(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], D3D12_RESOURCE_STATE_RENDER_TARGET);
-			gfxContext.SetDynamicConstantBufferView(0, sizeof(ConstantBuffer), m_pConstantBufferData);
-			gfxContext.SetBufferSRV(1, m_VolumeBuffer);
-			gfxContext.SetRenderTargets(1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], &m_DepthBuffer);
-			gfxContext.SetViewport(Graphics::g_DisplayPlaneViewPort);
-			gfxContext.SetScisor(Graphics::g_DisplayPlaneScissorRect);
-			gfxContext.SetVertexBuffer(0, m_VertexBuffer.VertexBufferView());
-			gfxContext.SetIndexBuffer(m_IndexBuffer.IndexBufferView());
-			gfxContext.DrawIndexed(36);
-
-			TextContext Text(gfxContext);
-			Text.Begin();
-			Text.SetViewSize((float)Core::g_config.swapChainDesc.Width, (float)Core::g_config.swapChainDesc.Height);
-			Text.SetFont(L"xerox.fnt");
-			Text.ResetCursor(10, 80);
-			Text.SetTextSize(20.f);
-			Text.DrawString("Use 's' to switch between using one cmdqueue or using two cmdqueue and sync\n");
-			Text.NewLine();
-			Text.DrawString(m_OneContext ? "Current State: Using one cmdqueue" : "Current State: Using two cmdqueue and sync");
-			Text.End();
-
-			GPU_Profiler::DrawStats(gfxContext);
-
-			gfxContext.TransitionResource(Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], D3D12_RESOURCE_STATE_PRESENT);
-		}
-		gfxContext.Finish();
+		TextContext Text(gfxContext);
+		Text.Begin();
+		Text.SetViewSize((float)Core::g_config.swapChainDesc.Width, (float)Core::g_config.swapChainDesc.Height);
+		Text.SetFont(L"xerox.fnt");
+		Text.ResetCursor(10, 80);
+		Text.SetTextSize(20.f);
+		Text.DrawString("Use 's' to switch between using one cmdqueue or using two cmdqueue and sync\n");
+		Text.NewLine();
+		Text.DrawString(m_OneContext ? "Current State: Using one cmdqueue" : "Current State: Using two cmdqueue and sync");
+		Text.End();
 	}
+	if (!m_OneContext)
+		gfxContext.Finish();
 }
 
 HRESULT VolumetricAnimation::OnSizeChanged()
@@ -391,8 +365,8 @@ bool VolumetricAnimation::OnEvent(MSG* msg)
 			m_OneContext = !m_OneContext;
 			PRINTINFO("OneContext is %s", m_OneContext ? "on" : "off");
 			return 0;
-		} 
-	return 0;
+		}
+		return 0;
 	}
 	return false;
 }

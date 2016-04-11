@@ -164,7 +164,7 @@ void GPU_Profiler::ShutDown()
     DeleteCriticalSection( &m_critialSection );
 }
 
-void GPU_Profiler::ProcessAndReadback()
+void GPU_Profiler::ProcessAndReadback(CommandContext& EngineContext)
 {
 	Graphics::g_cmdListMngr.WaitForFence(m_fence);
 
@@ -188,12 +188,11 @@ void GPU_Profiler::ProcessAndReadback()
 	// sort timer based on timer's start time
 	sort(m_ActiveTimer.begin(), m_ActiveTimer.end(), compStartTime);
 
-	CommandContext& context = CommandContext::Begin();
 	{
-		GPU_PROFILE(context, L"ResolveQuery");
-		context.ResolveTimeStamps(m_readbackBuffer, m_queryHeap, 2 * m_timerCount);
+		GPU_PROFILE(EngineContext, L"ResolveQuery");
+		EngineContext.ResolveTimeStamps(m_readbackBuffer, m_queryHeap, 2 * m_timerCount);
 	}
-	m_fence = context.Finish();
+	m_fence = EngineContext.Flush();
 }
 
 uint16_t GPU_Profiler::FillVertexData()
@@ -246,6 +245,9 @@ void GPU_Profiler::DrawStats(GraphicsContext& gfxContext)
 	gfxContext.SetPipelineState(m_GraphPSO);
 	gfxContext.SetDynamicSRV(0, sizeof(RectAttr)*(m_timerCount + 5), m_RectData);
 	gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	gfxContext.SetRenderTargets(1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx]);
+	gfxContext.SetViewport(Graphics::g_DisplayPlaneViewPort);
+	gfxContext.SetScisor(Graphics::g_DisplayPlaneScissorRect);
 	gfxContext.DrawInstanced(4,1);
 	gfxContext.DrawInstanced(4,instanceCount,0,1);
 
@@ -264,7 +266,6 @@ void GPU_Profiler::DrawStats(GraphicsContext& gfxContext)
 		txtContext.ResetCursor(curX,curY);
 	}
 	txtContext.End();
-
 }
 
 double GPU_Profiler::ReadTimer( uint8_t idx, double* start, double* stop )
@@ -284,7 +285,7 @@ uint16_t GPU_Profiler::GetTimingStr( uint8_t idx, wchar_t* outStr )
     if ( m_timerNameArray[idx].length() == 0 )
         return 0;
     double result = m_timeStampBufferCopy[idx * 2 + 1] * m_GPUTickDelta - m_timeStampBufferCopy[idx * 2] * m_GPUTickDelta;
-    swprintf( outStr, L"%s:%4.3fms \0", m_timerNameArray[idx].c_str(), result );
+    swprintf( outStr, L"%-15.15s:%4.2fms \0", m_timerNameArray[idx].c_str(), result );
     return ( uint16_t ) wcslen( outStr );
 }
 

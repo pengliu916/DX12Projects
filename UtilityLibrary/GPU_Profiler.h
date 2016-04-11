@@ -11,7 +11,7 @@ namespace GPU_Profiler
 	void Initialize();
     HRESULT CreateResource();
     void ShutDown();
-    void ProcessAndReadback();
+    void ProcessAndReadback(CommandContext& EngineContext);
 	uint16_t FillVertexData();
 	void DrawStats(GraphicsContext& gfxContext);
     double ReadTimer( uint8_t idx, double* start = nullptr, double* stop = nullptr );

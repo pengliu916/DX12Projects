@@ -6,6 +6,9 @@
 *.user
 *.sln.docstates
 
+# ImGUI configuration files
+imgui.ini
+
 # Build results
 
 [Dd]ebug/

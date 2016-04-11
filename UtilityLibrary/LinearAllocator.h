@@ -1,5 +1,6 @@
 #pragma once
 
+#include "GpuResource.h"
 #include <vector>
 #include <queue>
 #include <memory>
@@ -9,21 +10,20 @@
 
 struct DynAlloc
 {
-	DynAlloc(Microsoft::WRL::ComPtr<ID3D12Resource>& BaseResource) :m_pGfxResource(BaseResource) {};
+	DynAlloc(GpuResource& BaseResource, size_t ThisOffset, size_t ThisSize)
+		: Buffer(BaseResource), Offset(ThisOffset), Size(ThisSize) {}
 
-	Microsoft::WRL::ComPtr<ID3D12Resource>&	m_pGfxResource;
-	D3D12_GPU_VIRTUAL_ADDRESS				m_GpuVirtualAddr;
-
-	uint64_t								m_Offset;
-	uint64_t								m_Size;
-
-	void*									m_pData;
+	GpuResource&				Buffer;
+	size_t						Offset;
+	size_t						Size;
+	void*						DataPtr;
+	D3D12_GPU_VIRTUAL_ADDRESS	GpuAddress;
 };
 
-class LinearAllocationPage
+class LinearAllocationPage : public GpuResource
 {
 public:
-	LinearAllocationPage(ID3D12Resource* pGfxResource);
+	LinearAllocationPage(ID3D12Resource* pGfxResource, D3D12_RESOURCE_STATES Usage);
 	~LinearAllocationPage();
 
 	LinearAllocationPage& operator=(LinearAllocationPage const&) = delete;
@@ -31,7 +31,6 @@ public:
 
 	void*									m_CpuVirtualAddr;
 	D3D12_GPU_VIRTUAL_ADDRESS				m_GpuVirtualAddr;
-	Microsoft::WRL::ComPtr<ID3D12Resource>	m_pGfxResource;
 };
 
 enum LinearAllocatorType
@@ -50,6 +49,8 @@ enum
 
 class LinearAllocatorPageMngr
 {
+	friend class LinearAllocator;
+
 public:
 	LinearAllocatorPageMngr(LinearAllocatorType);
 	~LinearAllocatorPageMngr();
@@ -74,21 +75,21 @@ private:
 class LinearAllocator
 {
 public:
-	LinearAllocator(LinearAllocatorType);
+	LinearAllocator(LinearAllocatorType Type);
+	LinearAllocator(LinearAllocator const&) = delete;
+	LinearAllocator& operator= (LinearAllocator const&) = delete;
+	
+	DynAlloc Allocate(size_t SizeInByte, size_t Alignment = DEFAULT_ALIGN);
+	void CleanupUsedPages(uint64_t FenceID);
 
 	static void DestroyAll();
 
-	DynAlloc Allocate(uint64_t SizeInByte, uint64_t Alignment = DEFAULT_ALIGN);
-	void CleanupUsedPages(uint64_t FenceID);
-
-	LinearAllocator(LinearAllocator const&) = delete;
-	LinearAllocator& operator= (LinearAllocator const&) = delete;
 private:
 	static LinearAllocatorPageMngr		sm_PageMngr[2];
 
 	LinearAllocatorType					m_AllocationType;
-	uint64_t							m_PageSize;
-	uint64_t							m_CurOffset;
+	size_t								m_PageSize;
+	size_t								m_CurOffset;
 	LinearAllocationPage*				m_CurPage;
 	std::vector<LinearAllocationPage*>	m_RetiredPages;
 };

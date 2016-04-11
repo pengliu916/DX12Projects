@@ -20,6 +20,7 @@
 
 #include "DXHelper.h"
 
+class CommandContext;
 namespace Core
 {
     const uint32_t          NUM_RTV = 64;
@@ -36,7 +37,15 @@ namespace Core
         // Free to be changed after init
         //Vsync
         bool                    vsync;
+
+		bool					showPerf;
     };
+
+	struct Stats
+	{
+		SIZE_T	totalGpuMemInByte;
+		SIZE_T	usedGpuMemInByte;
+	};
 
     class IDX12Framework
     {
@@ -48,7 +57,7 @@ namespace Core
         virtual HRESULT OnCreateResource() = 0;
         virtual HRESULT OnSizeChanged() = 0;
         virtual void OnUpdate() = 0;
-        virtual void OnRender() = 0;
+        virtual void OnRender(CommandContext& EngineContext) = 0;
         virtual void OnDestroy() = 0;
         virtual bool OnEvent( MSG* msg ) = 0;
     };
@@ -56,9 +65,14 @@ namespace Core
     int Run( IDX12Framework& application, HINSTANCE hInstance, int nCmdShow );
     std::wstring GetAssetFullPath( LPCWSTR assetName );
 
-    extern Settings     g_config;           // gfx settings
-    extern HWND         g_hwnd;             // Window handle.
+	extern uint64_t		g_tickesPerSecond;		// CPU tickes per second
+	extern uint64_t		g_lastFrameTickCount;	// Total CPU tickes until last frame
+	extern double		g_elapsedTime;			// Elapsed time since program start
+	extern double		g_deltaTime;			// Elapsed time since last frame
+    extern Settings     g_config;				// gfx settings
+	extern Stats		g_stats;
+    extern HWND         g_hwnd;					// Window handle.
     extern std::wstring g_title;
-    extern std::wstring g_assetsPath;       // Root assets path.   
-    extern wchar_t      g_strCustom[256];   // temp variable for display GPU timing
+    extern std::wstring g_assetsPath;			// Root assets path.   
+    extern wchar_t      g_strCustom[256];		// temp variable for display GPU timing
 }

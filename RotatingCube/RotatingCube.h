@@ -20,10 +20,11 @@ public:
 	~RotatingCube();
 
     virtual void OnConfiguration();
+	virtual void OnInit();
     virtual HRESULT OnCreateResource();
     virtual HRESULT OnSizeChanged();
     virtual void OnUpdate();
-    virtual void OnRender();
+    virtual void OnRender(CommandContext& EngineContext);
     virtual void OnDestroy();
     virtual bool OnEvent( MSG* msg );
 
