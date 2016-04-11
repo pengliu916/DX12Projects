@@ -2,7 +2,7 @@
 
 #include "DX12Framework.h"
 #include "DescriptorHeap.h"
-//#include "TextRenderer.h"
+#include "TextRenderer.h"
 #include "GpuResource.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
@@ -32,6 +32,8 @@ private:
         XMFLOAT3 position;
     };
 
+	uint8_t								m_onStageIdx;
+	int									m_selectedVolumeSize;
 	int									m_OneContext;
 	int									m_SphereAnimation;
     uint32_t                            m_width;
@@ -48,7 +50,7 @@ private:
 	GraphicsPSO							m_GraphicsComputePSO;
 	ComputePSO							m_ComputePSO;
 	RootSignature						m_RootSignature;
-	StructuredBuffer					m_VolumeBuffer;
+	StructuredBuffer					m_VolumeBuffer[2];
 
     OrbitCamera                         m_camera;
     struct ConstantBuffer*              m_pConstantBufferData;
@@ -59,7 +61,6 @@ private:
 
     HRESULT LoadAssets();
     HRESULT LoadSizeDependentResource();
-	void CreateVolume(bool Update = false);
 
     void ResetCameraView();
 };

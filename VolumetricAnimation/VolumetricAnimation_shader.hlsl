@@ -5,12 +5,6 @@ SamplerState samRaycast : register( s0 );
 StructuredBuffer<uint> g_bufVolumeSRV : register( t0 );
 RWStructuredBuffer<uint> g_bufVolumeUAV : register( u0 );
 
-// TSDF related variable
-static const uint3 voxelResolution = uint3( VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z );// float3( VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE );
-static const float3 boxMin = VOLUME_SIZE_SCALE * float3( -1.0, -1.0, -1.0 )*voxelResolution / 2.0f;
-static const float3 boxMax = VOLUME_SIZE_SCALE * float3( 1.0, 1.0, 1.0 )*voxelResolution / 2.0f;
-static const float3 reversedWidthHeightDepth = 1.0f / ( voxelResolution );
-
 static const float density = 0.02;
 
 //--------------------------------------------------------------------------------------
@@ -56,6 +50,7 @@ bool IntersectBox( Ray r, float3 boxmin, float3 boxmax, out float tnear, out flo
 VSOutput vsmain( float4 pos : POSITION )
 {
     VSOutput vsout = ( VSOutput ) 0;
+    pos.xyz *= voxelResolution;
     vsout.ProjPos = mul( wvp, pos );
     vsout.Pos = pos;
     return vsout;
@@ -104,7 +99,6 @@ float4 psmain( VSOutput input ) : SV_TARGET
     }
     return output;
 }
-
 
 //--------------------------------------------------------------------------------------
 // Compute Shader

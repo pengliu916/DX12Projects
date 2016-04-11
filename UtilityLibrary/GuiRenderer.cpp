@@ -345,11 +345,20 @@ void GuiRenderer::Render(GraphicsContext& gfxContext)
 	static bool showEnginePenal = false;
 	if (ImGui::Begin("Engine Penal", &showEnginePenal))
 	{
-		if (ImGui::CollapsingHeader("Stats"))
+		if (ImGui::CollapsingHeader("Stats",(const char*)0,true,true))
 		{
-
+			HRESULT hr;
+			V( Graphics::g_adaptor->QueryVideoMemoryInfo( 0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &Core::g_stats.localVideoMemoryInfo ) );
+			float memBudget = Core::g_stats.localVideoMemoryInfo.Budget / 1024.f / 1024.f;
+			float memUsed = Core::g_stats.localVideoMemoryInfo.CurrentUsage / 1024.f / 1024.f;
+			float usedMemPct = memUsed / memBudget;
+			char buf[32];
+			sprintf( buf, "%4.2fMB/%4.fMB", memUsed, memBudget );
+			ImGui::Text( "GPU memory usage" );
+			ImGui::ProgressBar( usedMemPct,ImVec2(-1.f,0.f),buf );
 		}
 	}
+	ImGui::ShowTestWindow();
 	ImGui::End();
 	ImGui::Render();
 	ImGuiRender(ImGui::GetDrawData(),gfxContext);

@@ -43,8 +43,7 @@ namespace Core
 
 	struct Stats
 	{
-		SIZE_T	totalGpuMemInByte;
-		SIZE_T	usedGpuMemInByte;
+		DXGI_QUERY_VIDEO_MEMORY_INFO localVideoMemoryInfo;
 	};
 
     class IDX12Framework

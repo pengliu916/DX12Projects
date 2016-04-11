@@ -12,9 +12,10 @@ class SamplerDescriptor;
 namespace Graphics
 {
     // Framework level gfx resource
+    extern Microsoft::WRL::ComPtr<IDXGIFactory4>	g_factory;
+	extern Microsoft::WRL::ComPtr<IDXGIAdapter3>	g_adaptor;
     extern Microsoft::WRL::ComPtr<ID3D12Device>		g_device;
     extern Microsoft::WRL::ComPtr<IDXGISwapChain3>	g_swapChain;
-    extern Microsoft::WRL::ComPtr<IDXGIFactory4>	g_factory;
 	extern CmdListMngr								g_cmdListMngr;
 	extern ContextManager							g_ContextMngr;
     extern DescriptorHeap*							g_pRTVDescriptorHeap;

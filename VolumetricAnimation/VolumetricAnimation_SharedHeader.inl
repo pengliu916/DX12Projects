@@ -18,10 +18,6 @@
 #define THREAD_Y 8
 #define THREAD_Z 8
 
-#define VOLUME_SIZE_X 256
-#define VOLUME_SIZE_Y 256
-#define VOLUME_SIZE_Z 256
-
 #define VOLUME_SIZE_SCALE 0.01f
 #define COLOR_COUNT 7
 
@@ -38,7 +34,9 @@
 #else 
 typedef XMMATRIX    matrix;
 typedef XMINT4      int4;
+typedef XMINT3		int3;
 typedef XMFLOAT4    float4;
+typedef XMFLOAT3	float3;
 #define REGISTER(x)
 #define STRUCT(x) struct
 #endif
@@ -62,6 +60,15 @@ CBUFFER_ALIGN STRUCT( cbuffer ) ConstantBuffer REGISTER( b0 )
     matrix invWorld;
     float4 viewPos;
     int4 bgCol;
+	int3 voxelResolution;
+	int dummy0;
+	float3 boxMin;
+	int dummy1;
+	float3 boxMax;
+	int dummy2;
+	float3 reversedWidthHeightDepth;
+	int dummy3;
+
 #if !STATIC_ARRAY
     int4 shiftingColVals[COLOR_COUNT];
 #endif // !STATIC_ARRAY
