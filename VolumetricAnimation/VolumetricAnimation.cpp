@@ -17,6 +17,8 @@ namespace
 	};
 
 	bool _inTransaction;
+	bool _needRecordFenceValue;
+	uint64_t _fenceValue;
 	std::atomic<bool> _bufferReady;
 	VolumeConfig _volConfig;
 	uint8_t* _bufPtr;
@@ -84,6 +86,8 @@ VolumetricAnimation::VolumetricAnimation( uint32_t width, uint32_t height, std::
 	m_volumeDepth = m_selectedVolumeSize;
 
 	_inTransaction = false;
+	_needRecordFenceValue = false;
+	_fenceValue = 0;
 	_bufferReady.store( false );
 
 	m_pConstantBufferData = new ConstantBuffer();
@@ -276,7 +280,7 @@ void VolumetricAnimation::OnUpdate()
 		ImGui::Separator();
 
 		ImGui::Text( "Volume Animation Settings:" );
-		static int uiAnimation = m_SphereAnimation;
+		static int uiAnimation = 1 - m_SphereAnimation;
 		ImGui::RadioButton( "Sphere Animation", &uiAnimation, 1 );
 		ImGui::RadioButton( "Cube Animation", &uiAnimation, 0 );
 		if (!_inTransaction && uiAnimation != m_SphereAnimation)
@@ -312,6 +316,7 @@ void VolumetricAnimation::OnUpdate()
 		if (_bufferReady.load())
 		{
 			_bufferReady.store( false );
+			Graphics::g_cmdListMngr.WaitForFence( _fenceValue );
 			m_VolumeBuffer[1 - m_onStageIdx].Destroy();
 
 			uint32_t bufferElementCount = _volConfig.width * _volConfig.height * _volConfig.depth;
@@ -319,6 +324,7 @@ void VolumetricAnimation::OnUpdate()
 			m_onStageIdx = 1 - m_onStageIdx;
 			delete _bufPtr;
 			_inTransaction = false;
+			_needRecordFenceValue = true;
 
 			m_volumeWidth = m_selectedVolumeSize;
 			m_volumeHeight = m_selectedVolumeSize;
@@ -378,13 +384,18 @@ void VolumetricAnimation::OnRender( CommandContext& EngineContext )
 		Text.Begin();
 		Text.SetViewSize( (float)Core::g_config.swapChainDesc.Width, (float)Core::g_config.swapChainDesc.Height );
 		Text.SetFont( L"xerox.fnt" );
-		Text.ResetCursor( 10, 80 );
+		Text.ResetCursor( 10, 90 );
 		Text.SetTextSize( 20.f );
-		Text.DrawString( "Use 's' to switch between using one cmdqueue or using two cmdqueue and sync\n" );
-		Text.NewLine();
 		Text.DrawString( m_OneContext ? "Current State: Using one cmdqueue" : "Current State: Using two cmdqueue and sync" );
 		Text.End();
 	}
+
+	if (_needRecordFenceValue)
+	{
+		_needRecordFenceValue = false;
+		_fenceValue = Graphics::g_cmdListMngr.GetQueue( D3D12_COMMAND_LIST_TYPE_DIRECT ).IncrementFence();
+	}
+
 	if (!m_OneContext)
 		gfxContext.Finish();
 }
