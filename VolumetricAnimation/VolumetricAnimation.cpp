@@ -77,6 +77,7 @@ namespace
 VolumetricAnimation::VolumetricAnimation( uint32_t width, uint32_t height, std::wstring name ) :
 	m_DepthBuffer()
 {
+	m_fenceValue = 0;
 	m_onStageIdx = 0;
 	m_OneContext = 0;
 	m_SphereAnimation = 0;
@@ -359,7 +360,10 @@ void VolumetricAnimation::OnRender( CommandContext& EngineContext )
 		cptContext.Dispatch( m_volumeWidth / THREAD_X, m_volumeHeight / THREAD_Y, m_volumeDepth / THREAD_Z );
 	}
 	if (!m_OneContext)
-		cptContext.Finish( true );
+	{
+		Graphics::g_cmdListMngr.GetQueue( D3D12_COMMAND_LIST_TYPE_DIRECT ).WaitForFence( m_fenceValue );
+		m_fenceValue = cptContext.Finish();
+	}
 
 	GraphicsContext& gfxContext = m_OneContext ? EngineContext.GetGraphicsContext() : GraphicsContext::Begin( L"Render Volume" );
 	{
@@ -397,7 +401,10 @@ void VolumetricAnimation::OnRender( CommandContext& EngineContext )
 	}
 
 	if (!m_OneContext)
-		gfxContext.Finish();
+	{
+		Graphics::g_cmdListMngr.GetQueue( D3D12_COMMAND_LIST_TYPE_DIRECT ).WaitForFence( m_fenceValue );
+		m_fenceValue = gfxContext.Finish();
+	}
 }
 
 HRESULT VolumetricAnimation::OnSizeChanged()

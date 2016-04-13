@@ -356,6 +356,26 @@ void GuiRenderer::Render(GraphicsContext& gfxContext)
 			sprintf( buf, "%4.2fMB/%4.fMB", memUsed, memBudget );
 			ImGui::Text( "GPU memory usage" );
 			ImGui::ProgressBar( usedMemPct,ImVec2(-1.f,0.f),buf );
+
+			ImGui::Columns( 3, "cmdAllocatorInfo" );
+			ImGui::Separator();
+			ImGui::Text( "Allocator Type" ); ImGui::NextColumn();
+			ImGui::Text( "Created" ); ImGui::NextColumn();
+			ImGui::Text( "Ready" ); ImGui::NextColumn();
+			ImGui::Separator();
+			const char* name[4] = {"Direct", "Bundle", "Compute", "Copy"};
+			for (int i = 0; i < 4; ++i)
+			{
+				//ImGui::NextColumn();
+				ImGui::Text( name[i] ); ImGui::NextColumn();
+				ImGui::Text( "%d", Core::g_stats.allocatorCreated[i] ); ImGui::NextColumn();
+				ImGui::Text( "%d", Core::g_stats.allocatorReady[i] ); ImGui::NextColumn();
+			}
+			ImGui::Columns( 1 );
+			ImGui::Separator();
+			ImGui::Text( "RenderThread Stall Count: %d/frame  Time:%4.2fms", Core::g_stats.cpuStallCountPerFrame, Core::g_stats.cpuStallTimePerFrame );
+			Core::g_stats.cpuStallCountPerFrame = 0;
+			Core::g_stats.cpuStallTimePerFrame = 0;
 		}
 	}
 	ImGui::ShowTestWindow();

@@ -87,18 +87,17 @@ float4 psmain( VSOutput input ) : SV_TARGET
     float3 PsmallStep = eyeray.d.xyz * tSmallStep;
 
     float3 currentPixPos;
-	int tick = 0;
     while ( t <= tfar) {
-		uint3 idx = P / VOLUME_SIZE_SCALE + voxelResolution * 0.5 - 0.001f; // -0.001f to avoid incorrect float->int jump
-		float4 value = D3DX_R8G8B8A8_UINT_to_UINT4(g_bufVolumeSRV[idx.x + idx.y*voxelResolution.x + idx.z*voxelResolution.y * voxelResolution.x]) / 255.f;
+        uint3 idx = P / VOLUME_SIZE_SCALE + voxelResolution * 0.5 - 0.01f; // -0.01f to avoid incorrect float->int jump
+        float4 value = D3DX_R8G8B8A8_UINT_to_UINT4(g_bufVolumeSRV[idx.x + idx.y*voxelResolution.x + idx.z*voxelResolution.y * voxelResolution.x]) / 255.f;
         output += value * density;
 
         P += PsmallStep;
         t += tSmallStep;
-		tick++;
     }
     return output;
 }
+
 
 //--------------------------------------------------------------------------------------
 // Compute Shader

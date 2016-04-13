@@ -36,6 +36,7 @@ private:
 	int									m_selectedVolumeSize;
 	int									m_OneContext;
 	int									m_SphereAnimation;
+	uint64_t							m_fenceValue;
     uint32_t                            m_width;
     uint32_t                            m_height;
 

@@ -43,7 +43,12 @@ namespace Core
 
 	struct Stats
 	{
-		DXGI_QUERY_VIDEO_MEMORY_INFO localVideoMemoryInfo;
+		DXGI_QUERY_VIDEO_MEMORY_INFO localVideoMemoryInfo = {};
+		uint16_t allocatorCreated[4] = {};
+		uint16_t allocatorReady[4] = {};
+		uint16_t cpuStallCountPerFrame = 0;
+		double cpuStallTimePerFrame = 0;
+
 	};
 
     class IDX12Framework
