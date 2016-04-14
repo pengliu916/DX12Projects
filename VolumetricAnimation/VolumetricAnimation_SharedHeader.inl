@@ -44,22 +44,22 @@ typedef XMFLOAT3	float3;
 #if __cplusplus || (__hlsl && STATIC_ARRAY)
 static int4 shiftingColVals[] =
 {
-    int4( 1, 0, 0, 0 ),
-    int4( 0, 1, 0, 1 ),
-    int4( 0, 0, 1, 2 ),
-    int4( 1, 1, 0, 3 ),
-    int4( 1, 0, 1, 4 ),
-    int4( 0, 1, 1, 5 ),
-    int4( 1, 1, 1, 6 ),
+	int4( 1, 0, 0, 0 ),
+	int4( 0, 1, 0, 1 ),
+	int4( 0, 0, 1, 2 ),
+	int4( 1, 1, 0, 3 ),
+	int4( 1, 0, 1, 4 ),
+	int4( 0, 1, 1, 5 ),
+	int4( 1, 1, 1, 6 ),
 };
 #endif
 
 CBUFFER_ALIGN STRUCT( cbuffer ) ConstantBuffer REGISTER( b0 )
 {
-    matrix wvp;
-    matrix invWorld;
-    float4 viewPos;
-    int4 bgCol;
+	matrix wvp;
+	matrix invWorld;
+	float4 viewPos;
+	int4 bgCol;
 	int3 voxelResolution;
 	int dummy0;
 	float3 boxMin;
@@ -70,16 +70,16 @@ CBUFFER_ALIGN STRUCT( cbuffer ) ConstantBuffer REGISTER( b0 )
 	int dummy3;
 
 #if !STATIC_ARRAY
-    int4 shiftingColVals[COLOR_COUNT];
+	int4 shiftingColVals[COLOR_COUNT];
 #endif // !STATIC_ARRAY
 #if __cplusplus
-    void * operator new( size_t i )
-    {
-        return _aligned_malloc( i, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT );
-    };
-    void operator delete( void* p )
-    {
-        _aligned_free( p );
-    };
+	void * operator new(size_t i)
+	{
+		return _aligned_malloc( i, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT );
+	};
+	void operator delete(void* p)
+	{
+		_aligned_free( p );
+	};
 #endif
 };

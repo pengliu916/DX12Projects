@@ -8,8 +8,8 @@
 //--------------------------------------------------------------------------------------
 // PixelBuffer
 //--------------------------------------------------------------------------------------
-D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D(uint32_t Width, uint32_t Height, uint32_t DepthOrArraySize,
-	uint32_t NumMips, DXGI_FORMAT Format, UINT Flags)
+D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D( uint32_t Width, uint32_t Height, uint32_t DepthOrArraySize,
+	uint32_t NumMips, DXGI_FORMAT Format, UINT Flags )
 {
 	m_Width = Width;
 	m_Height = Height;
@@ -21,7 +21,7 @@ D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D(uint32_t Width, uint32_t Height, 
 	Desc.DepthOrArraySize = (UINT16)DepthOrArraySize;
 	Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	Desc.Flags = (D3D12_RESOURCE_FLAGS)Flags;
-	Desc.Format = GetBaseFormat(Format);
+	Desc.Format = GetBaseFormat( Format );
 	Desc.Height = (UINT)Height;
 	Desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	Desc.MipLevels = NumMips;
@@ -31,13 +31,13 @@ D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D(uint32_t Width, uint32_t Height, 
 	return Desc;
 }
 
-void PixelBuffer::AssociateWithResource(ID3D12Device* Device, const std::wstring& Name,
-	ID3D12Resource* Resource, D3D12_RESOURCE_STATES CurrentState)
+void PixelBuffer::AssociateWithResource( ID3D12Device* Device, const std::wstring& Name,
+	ID3D12Resource* Resource, D3D12_RESOURCE_STATES CurrentState )
 {
-	ASSERT(Resource != nullptr);
+	ASSERT( Resource != nullptr );
 	D3D12_RESOURCE_DESC ResourceDesc = Resource->GetDesc();
 
-	m_pResource.Attach(Resource);
+	m_pResource.Attach( Resource );
 	m_UsageState = CurrentState;
 
 	m_Width = (uint32_t)ResourceDesc.Width;
@@ -46,15 +46,15 @@ void PixelBuffer::AssociateWithResource(ID3D12Device* Device, const std::wstring
 	m_Format = ResourceDesc.Format;
 
 #ifndef RELEASE
-	m_pResource->SetName(Name.c_str());
+	m_pResource->SetName( Name.c_str() );
 #else
 	(Name);
 #endif
 }
 
-void PixelBuffer::CreateTextureResource(ID3D12Device* Device, const std::wstring& Name,
+void PixelBuffer::CreateTextureResource( ID3D12Device* Device, const std::wstring& Name,
 	const D3D12_RESOURCE_DESC& ResourceDesc, D3D12_CLEAR_VALUE ClearValue,
-	D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr /* = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN */)
+	D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr /* = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN */ )
 {
 	D3D12_HEAP_PROPERTIES HeapProps;
 	HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -64,14 +64,14 @@ void PixelBuffer::CreateTextureResource(ID3D12Device* Device, const std::wstring
 	HeapProps.VisibleNodeMask = 1;
 
 	HRESULT hr;
-	V(Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &ResourceDesc,
-		D3D12_RESOURCE_STATE_COMMON, &ClearValue, IID_PPV_ARGS(&m_pResource)));
+	V( Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE, &ResourceDesc,
+		D3D12_RESOURCE_STATE_COMMON, &ClearValue, IID_PPV_ARGS( &m_pResource ) ) );
 
 	m_UsageState = D3D12_RESOURCE_STATE_COMMON;
 	m_GpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_NULL;
 }
 
-DXGI_FORMAT PixelBuffer::GetBaseFormat(DXGI_FORMAT defaultFormat)
+DXGI_FORMAT PixelBuffer::GetBaseFormat( DXGI_FORMAT defaultFormat )
 {
 	switch (defaultFormat)
 	{
@@ -118,7 +118,7 @@ DXGI_FORMAT PixelBuffer::GetBaseFormat(DXGI_FORMAT defaultFormat)
 	}
 }
 
-DXGI_FORMAT PixelBuffer::GetUAVFormat(DXGI_FORMAT defaultFormat)
+DXGI_FORMAT PixelBuffer::GetUAVFormat( DXGI_FORMAT defaultFormat )
 {
 	switch (defaultFormat)
 	{
@@ -153,7 +153,7 @@ DXGI_FORMAT PixelBuffer::GetUAVFormat(DXGI_FORMAT defaultFormat)
 	case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
 	case DXGI_FORMAT_D16_UNORM:
 
-		PRINTWARN("Requested a UAV format for a depth stencil format.");
+		PRINTWARN( "Requested a UAV format for a depth stencil format." );
 #endif
 
 	default:
@@ -161,7 +161,7 @@ DXGI_FORMAT PixelBuffer::GetUAVFormat(DXGI_FORMAT defaultFormat)
 	}
 }
 
-DXGI_FORMAT PixelBuffer::GetDSVFormat(DXGI_FORMAT defaultFormat)
+DXGI_FORMAT PixelBuffer::GetDSVFormat( DXGI_FORMAT defaultFormat )
 {
 	switch (defaultFormat)
 	{
@@ -196,7 +196,7 @@ DXGI_FORMAT PixelBuffer::GetDSVFormat(DXGI_FORMAT defaultFormat)
 	}
 }
 
-DXGI_FORMAT PixelBuffer::GetDepthFormat(DXGI_FORMAT defaultFormat)
+DXGI_FORMAT PixelBuffer::GetDepthFormat( DXGI_FORMAT defaultFormat )
 {
 	switch (defaultFormat)
 	{
@@ -231,7 +231,7 @@ DXGI_FORMAT PixelBuffer::GetDepthFormat(DXGI_FORMAT defaultFormat)
 	}
 }
 
-DXGI_FORMAT PixelBuffer::GetStencilFormat(DXGI_FORMAT defaultFormat)
+DXGI_FORMAT PixelBuffer::GetStencilFormat( DXGI_FORMAT defaultFormat )
 {
 	switch (defaultFormat)
 	{
@@ -257,50 +257,50 @@ DXGI_FORMAT PixelBuffer::GetStencilFormat(DXGI_FORMAT defaultFormat)
 //--------------------------------------------------------------------------------------
 // ColorBuffer
 //--------------------------------------------------------------------------------------
-ColorBuffer::ColorBuffer(DirectX::XMVECTOR ClearColor)
-	: m_ClearColor(ClearColor), m_NumMipMaps(0)
+ColorBuffer::ColorBuffer( DirectX::XMVECTOR ClearColor )
+	: m_ClearColor( ClearColor ), m_NumMipMaps( 0 )
 {
 	m_SRVHandle.ptr = ~0ull;
 	m_RTVHandle.ptr = ~0ull;
-	std::memset(m_UAVHandle, 0xFF, sizeof(m_UAVHandle));
+	std::memset( m_UAVHandle, 0xFF, sizeof( m_UAVHandle ) );
 }
 
-void ColorBuffer::CreateFromSwapChain(const std::wstring& Name, ID3D12Resource* BaseResource)
+void ColorBuffer::CreateFromSwapChain( const std::wstring& Name, ID3D12Resource* BaseResource )
 {
-	AssociateWithResource(Graphics::g_device.Get(), Name, BaseResource, D3D12_RESOURCE_STATE_PRESENT);
-	if(m_RTVHandle.ptr == ~0ull)
+	AssociateWithResource( Graphics::g_device.Get(), Name, BaseResource, D3D12_RESOURCE_STATE_PRESENT );
+	if (m_RTVHandle.ptr == ~0ull)
 		m_RTVHandle = Graphics::g_pRTVDescriptorHeap->Append().GetCPUHandle();
-	Graphics::g_device->CreateRenderTargetView(m_pResource.Get(), nullptr, m_RTVHandle);
+	Graphics::g_device->CreateRenderTargetView( m_pResource.Get(), nullptr, m_RTVHandle );
 }
 
-void ColorBuffer::Create(const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t NumMips,
-	DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr /* = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN */)
+void ColorBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t NumMips,
+	DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr /* = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN */ )
 {
-	NumMips = (NumMips == 0 ? ComputeNumMips(Width, Height) : NumMips);
-	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, 1, NumMips, Format,
-		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	NumMips = (NumMips == 0 ? ComputeNumMips( Width, Height ) : NumMips);
+	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D( Width, Height, 1, NumMips, Format,
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS );
 
 	D3D12_CLEAR_VALUE ClearValue = {};
 	ClearValue.Format = Format;
-	ClearValue.Color[0] = DirectX::XMVectorGetX(m_ClearColor);
-	ClearValue.Color[1] = DirectX::XMVectorGetY(m_ClearColor);
-	ClearValue.Color[2] = DirectX::XMVectorGetZ(m_ClearColor);
-	ClearValue.Color[3] = DirectX::XMVectorGetW(m_ClearColor);
+	ClearValue.Color[0] = DirectX::XMVectorGetX( m_ClearColor );
+	ClearValue.Color[1] = DirectX::XMVectorGetY( m_ClearColor );
+	ClearValue.Color[2] = DirectX::XMVectorGetZ( m_ClearColor );
+	ClearValue.Color[3] = DirectX::XMVectorGetW( m_ClearColor );
 
-	CreateTextureResource(Graphics::g_device.Get(), Name, ResourceDesc, ClearValue, VidMemPtr);
-	CreateDerivedViews(Graphics::g_device.Get(), Format, 1, NumMips);
+	CreateTextureResource( Graphics::g_device.Get(), Name, ResourceDesc, ClearValue, VidMemPtr );
+	CreateDerivedViews( Graphics::g_device.Get(), Format, 1, NumMips );
 }
 
-void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips /* = 1 */)
+void ColorBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips /* = 1 */ )
 {
-	ASSERT(ArraySize == 1 || NumMips == 1);
+	ASSERT( ArraySize == 1 || NumMips == 1 );
 	m_NumMipMaps = NumMips - 1;
 	D3D12_RENDER_TARGET_VIEW_DESC RTVDesc = {};
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
 
 	RTVDesc.Format = Format;
-	UAVDesc.Format = GetUAVFormat(Format);
+	UAVDesc.Format = GetUAVFormat( Format );
 	SRVDesc.Format = Format;
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
@@ -338,13 +338,13 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, u
 	}
 
 	ID3D12Resource* Resource = m_pResource.Get();
-	Device->CreateRenderTargetView(Resource, &RTVDesc, m_RTVHandle);
-	Device->CreateShaderResourceView(Resource, &SRVDesc, m_SRVHandle);
+	Device->CreateRenderTargetView( Resource, &RTVDesc, m_RTVHandle );
+	Device->CreateShaderResourceView( Resource, &SRVDesc, m_SRVHandle );
 	for (uint32_t i = 0; i < NumMips; ++i)
 	{
 		if (m_UAVHandle[i].ptr == ~0ull)
 			m_UAVHandle[i] = Graphics::g_pCSUDescriptorHeap->Append().GetCPUHandle();
-		Device->CreateUnorderedAccessView(Resource, nullptr, &UAVDesc, m_UAVHandle[i]);
+		Device->CreateUnorderedAccessView( Resource, nullptr, &UAVDesc, m_UAVHandle[i] );
 		UAVDesc.Texture2D.MipSlice++;
 	}
 }
@@ -352,8 +352,8 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, u
 //--------------------------------------------------------------------------------------
 // DepthBuffer
 //--------------------------------------------------------------------------------------
-DepthBuffer::DepthBuffer(FLOAT ClearDepth /* = .0f */, UINT8 ClearStencil /* = 0 */)
-	:m_ClearDepth(ClearDepth), m_ClearStencil(ClearStencil)
+DepthBuffer::DepthBuffer( FLOAT ClearDepth /* = .0f */, UINT8 ClearStencil /* = 0 */ )
+	:m_ClearDepth( ClearDepth ), m_ClearStencil( ClearStencil )
 {
 	m_DSVHandle[0].ptr = ~0ull;
 	m_DSVHandle[1].ptr = ~0ull;
@@ -363,23 +363,23 @@ DepthBuffer::DepthBuffer(FLOAT ClearDepth /* = .0f */, UINT8 ClearStencil /* = 0
 	m_StencilSRVHandle.ptr = ~0ull;
 }
 
-void DepthBuffer::Create(const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT Format,
-	D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr /* = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN */)
+void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT Format,
+	D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr /* = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN */ )
 {
-	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, 1, 1, Format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D( Width, Height, 1, 1, Format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL );
 	D3D12_CLEAR_VALUE ClearValue = {};
 	ClearValue.Format = Format;
 	ClearValue.DepthStencil.Depth = m_ClearDepth;
 	ClearValue.DepthStencil.Stencil = m_ClearStencil;
-	CreateTextureResource(Graphics::g_device.Get(), Name, ResourceDesc, ClearValue, VidMemPtr);
-	CreateDerivedViews(Graphics::g_device.Get(), Format);
+	CreateTextureResource( Graphics::g_device.Get(), Name, ResourceDesc, ClearValue, VidMemPtr );
+	CreateDerivedViews( Graphics::g_device.Get(), Format );
 }
 
-void DepthBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format)
+void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 {
 	ID3D12Resource* Resource = m_pResource.Get();
 	D3D12_DEPTH_STENCIL_VIEW_DESC DSVDesc;
-	DSVDesc.Format = GetDSVFormat(Format);
+	DSVDesc.Format = GetDSVFormat( Format );
 	DSVDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	DSVDesc.Texture2D.MipSlice = 0;
 	if (m_DSVHandle[0].ptr == ~0ull)
@@ -388,11 +388,11 @@ void DepthBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format)
 		m_DSVHandle[1] = Graphics::g_pDSVDescriptorHeap->Append().GetCPUHandle();
 	}
 	DSVDesc.Flags = D3D12_DSV_FLAG_NONE;
-	Device->CreateDepthStencilView(Resource, &DSVDesc, m_DSVHandle[0]);
+	Device->CreateDepthStencilView( Resource, &DSVDesc, m_DSVHandle[0] );
 	DSVDesc.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
-	Device->CreateDepthStencilView(Resource, &DSVDesc, m_DSVHandle[1]);
+	Device->CreateDepthStencilView( Resource, &DSVDesc, m_DSVHandle[1] );
 
-	DXGI_FORMAT stencilReadFormat = GetStencilFormat(Format);
+	DXGI_FORMAT stencilReadFormat = GetStencilFormat( Format );
 	if (stencilReadFormat != DXGI_FORMAT_UNKNOWN)
 	{
 		if (m_DSVHandle[2].ptr == ~0ull)
@@ -401,9 +401,9 @@ void DepthBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format)
 			m_DSVHandle[3] = Graphics::g_pDSVDescriptorHeap->Append().GetCPUHandle();
 		}
 		DSVDesc.Flags = D3D12_DSV_FLAG_READ_ONLY_STENCIL;
-		Device->CreateDepthStencilView(Resource, &DSVDesc, m_DSVHandle[2]);
+		Device->CreateDepthStencilView( Resource, &DSVDesc, m_DSVHandle[2] );
 		DSVDesc.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH | D3D12_DSV_FLAG_READ_ONLY_STENCIL;
-		Device->CreateDepthStencilView(Resource, &DSVDesc, m_DSVHandle[3]);
+		Device->CreateDepthStencilView( Resource, &DSVDesc, m_DSVHandle[3] );
 	}
 	else
 	{
@@ -414,11 +414,11 @@ void DepthBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format)
 	if (m_DepthSRVHandle.ptr == ~0ull)
 		m_DepthSRVHandle = Graphics::g_pCSUDescriptorHeap->Append().GetCPUHandle();
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-	SRVDesc.Format = GetDepthFormat(Format);
+	SRVDesc.Format = GetDepthFormat( Format );
 	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	SRVDesc.Texture2D.MipLevels = 1;
-	Device->CreateShaderResourceView(Resource, &SRVDesc, m_DepthSRVHandle);
+	Device->CreateShaderResourceView( Resource, &SRVDesc, m_DepthSRVHandle );
 
 	if (stencilReadFormat != DXGI_FORMAT_UNKNOWN)
 	{
@@ -427,7 +427,7 @@ void DepthBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format)
 			m_StencilSRVHandle = Graphics::g_pCSUDescriptorHeap->Append().GetCPUHandle();
 		}
 		SRVDesc.Format = stencilReadFormat;
-		Device->CreateShaderResourceView(Resource, &SRVDesc, m_StencilSRVHandle);
+		Device->CreateShaderResourceView( Resource, &SRVDesc, m_StencilSRVHandle );
 	}
 }
 
@@ -440,12 +440,12 @@ void GpuBuffer::Destroy()
 	GpuResource::Destroy();
 }
 
-void GpuBuffer::Create(const std::wstring& Name, uint32_t NumElements, uint32_t ElementSize, const void* InitData /* = nullptr */)
+void GpuBuffer::Create( const std::wstring& Name, uint32_t NumElements, uint32_t ElementSize, const void* InitData /* = nullptr */ )
 {
 	m_ElementCount = NumElements;
 	m_ElementSize = ElementSize;
 	m_BufferSize = NumElements*ElementSize;
-	
+
 	D3D12_RESOURCE_DESC ResourceDesc = DescribeBuffer();
 
 	m_UsageState = D3D12_RESOURCE_STATE_COMMON;
@@ -458,25 +458,25 @@ void GpuBuffer::Create(const std::wstring& Name, uint32_t NumElements, uint32_t 
 	HeapProps.VisibleNodeMask = 1;
 
 	HRESULT hr;
-	V(Graphics::g_device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE,
-		&ResourceDesc, m_UsageState, nullptr, IID_PPV_ARGS(&m_pResource)));
-	
+	V( Graphics::g_device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
+		&ResourceDesc, m_UsageState, nullptr, IID_PPV_ARGS( &m_pResource ) ) );
+
 	m_GpuVirtualAddress = m_pResource->GetGPUVirtualAddress();
 
 	if (InitData)
-		CommandContext::InitializeBuffer(*this, InitData, m_BufferSize);
+		CommandContext::InitializeBuffer( *this, InitData, m_BufferSize );
 
 #ifdef RELEASE
-	(Name);
+	( Name );
 #else
-	m_pResource->SetName(Name.c_str());
+	m_pResource->SetName( Name.c_str() );
 #endif
 
 	CreateDerivedViews();
 }
 
-void GpuBuffer::CreatePlaced(const std::wstring& Name, ID3D12Heap* BackingHeap, uint32_t HeapOffset, uint32_t NumElements,
-	uint32_t ElementSize, const void* InitData /* = nullptr */)
+void GpuBuffer::CreatePlaced( const std::wstring& Name, ID3D12Heap* BackingHeap, uint32_t HeapOffset, uint32_t NumElements,
+	uint32_t ElementSize, const void* InitData /* = nullptr */ )
 {
 	m_ElementCount = NumElements;
 	m_ElementSize = ElementSize;
@@ -485,34 +485,34 @@ void GpuBuffer::CreatePlaced(const std::wstring& Name, ID3D12Heap* BackingHeap, 
 	HRESULT hr;
 	D3D12_RESOURCE_DESC ResourceDesc = DescribeBuffer();
 	m_UsageState = D3D12_RESOURCE_STATE_COMMON;
-	V(Graphics::g_device->CreatePlacedResource(BackingHeap, HeapOffset, &ResourceDesc, m_UsageState,
-		nullptr, IID_PPV_ARGS(&m_pResource)));
+	V( Graphics::g_device->CreatePlacedResource( BackingHeap, HeapOffset, &ResourceDesc, m_UsageState,
+		nullptr, IID_PPV_ARGS( &m_pResource ) ) );
 	m_GpuVirtualAddress = m_pResource->GetGPUVirtualAddress();
 	if (InitData)
-		CommandContext::InitializeBuffer(*this, InitData, m_BufferSize);
+		CommandContext::InitializeBuffer( *this, InitData, m_BufferSize );
 #ifdef RELEASE
-	(Name);
+	( Name );
 #else
-	m_pResource->SetName(Name.c_str());
+	m_pResource->SetName( Name.c_str() );
 #endif
 	CreateDerivedViews();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE GpuBuffer::CreateConstantBufferView(uint32_t Offset, uint32_t Size) const
+D3D12_CPU_DESCRIPTOR_HANDLE GpuBuffer::CreateConstantBufferView( uint32_t Offset, uint32_t Size ) const
 {
-	ASSERT(Offset + Size <= m_BufferSize);
-	Size = AlignUp(Size, 16);
+	ASSERT( Offset + Size <= m_BufferSize );
+	Size = AlignUp( Size, 16 );
 	D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc;
 	CBVDesc.BufferLocation = m_GpuVirtualAddress + (size_t)Offset;
 	CBVDesc.SizeInBytes = Size;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE hCBV = Graphics::g_pCSUDescriptorHeap->Append().GetCPUHandle();
-	Graphics::g_device->CreateConstantBufferView(&CBVDesc, hCBV);
+	Graphics::g_device->CreateConstantBufferView( &CBVDesc, hCBV );
 	return hCBV;
 }
 
 GpuBuffer::GpuBuffer()
-	:m_BufferSize(0), m_ElementCount(0), m_ElementSize(0)
+	:m_BufferSize( 0 ), m_ElementCount( 0 ), m_ElementSize( 0 )
 {
 	m_ResourceFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	m_UAV.ptr = ~0ull;
@@ -521,7 +521,7 @@ GpuBuffer::GpuBuffer()
 
 D3D12_RESOURCE_DESC GpuBuffer::DescribeBuffer()
 {
-	ASSERT(m_BufferSize != 0);
+	ASSERT( m_BufferSize != 0 );
 	D3D12_RESOURCE_DESC Desc = {};
 	Desc.Alignment = 0;
 	Desc.DepthOrArraySize = 1;
@@ -552,8 +552,8 @@ void StructuredBuffer::CreateDerivedViews()
 
 	if (m_SRV.ptr == ~0ull)
 		m_SRV = Graphics::g_pCSUDescriptorHeap->Append().GetCPUHandle();
-	Graphics::g_device->CreateShaderResourceView(m_pResource.Get(), &SRVDesc, m_SRV);
-	
+	Graphics::g_device->CreateShaderResourceView( m_pResource.Get(), &SRVDesc, m_SRV );
+
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -564,7 +564,7 @@ void StructuredBuffer::CreateDerivedViews()
 
 	if (m_UAV.ptr == ~0ull)
 		m_UAV = Graphics::g_pCSUDescriptorHeap->Append().GetCPUHandle();
-	Graphics::g_device->CreateUnorderedAccessView(m_pResource.Get(), nullptr, &UAVDesc, m_UAV);
+	Graphics::g_device->CreateUnorderedAccessView( m_pResource.Get(), nullptr, &UAVDesc, m_UAV );
 }
 
 //--------------------------------------------------------------------------------------
@@ -581,7 +581,7 @@ void ByteAddressBuffer::CreateDerivedViews()
 
 	if (m_SRV.ptr == ~0ull)
 		m_SRV = Graphics::g_pCSUDescriptorHeap->Append().GetCPUHandle();
-	Graphics::g_device->CreateShaderResourceView(m_pResource.Get(), &SRVDesc, m_SRV);
+	Graphics::g_device->CreateShaderResourceView( m_pResource.Get(), &SRVDesc, m_SRV );
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -591,7 +591,7 @@ void ByteAddressBuffer::CreateDerivedViews()
 
 	if (m_UAV.ptr == ~0ull)
 		m_UAV = Graphics::g_pCSUDescriptorHeap->Append().GetCPUHandle();
-	Graphics::g_device->CreateUnorderedAccessView(m_pResource.Get(), nullptr, &UAVDesc, m_UAV);
+	Graphics::g_device->CreateUnorderedAccessView( m_pResource.Get(), nullptr, &UAVDesc, m_UAV );
 }
 
 //--------------------------------------------------------------------------------------
@@ -601,7 +601,7 @@ void ByteAddressBuffer::CreateDerivedViews()
 //--------------------------------------------------------------------------------------
 // Return the BPP for a particular format
 //--------------------------------------------------------------------------------------
-size_t BitsPerPixel(_In_ DXGI_FORMAT fmt)
+size_t BitsPerPixel( _In_ DXGI_FORMAT fmt )
 {
 	switch (fmt)
 	{
@@ -752,12 +752,12 @@ Texture::Texture()
 	m_hCpuDescriptorHandle.ptr = ~0ull;
 }
 
-Texture::Texture(D3D12_CPU_DESCRIPTOR_HANDLE Handle)
-	:m_hCpuDescriptorHandle(Handle)
+Texture::Texture( D3D12_CPU_DESCRIPTOR_HANDLE Handle )
+	:m_hCpuDescriptorHandle( Handle )
 {
 }
 
-void Texture::Create(size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData)
+void Texture::Create( size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData )
 {
 	m_UsageState = D3D12_RESOURCE_STATE_COMMON;
 
@@ -781,20 +781,20 @@ void Texture::Create(size_t Width, size_t Height, DXGI_FORMAT Format, const void
 	HeapProps.VisibleNodeMask = 1;
 
 	HRESULT hr;
-	V(Graphics::g_device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &textDesc,
-		m_UsageState, nullptr, IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
-	m_pResource->SetName(L"Texture");
+	V( Graphics::g_device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE, &textDesc,
+		m_UsageState, nullptr, IID_PPV_ARGS( m_pResource.ReleaseAndGetAddressOf() ) ) );
+	m_pResource->SetName( L"Texture" );
 
 	D3D12_SUBRESOURCE_DATA texResource;
 	texResource.pData = InitData;
-	texResource.RowPitch = Width * BitsPerPixel(Format) / 8;
+	texResource.RowPitch = Width * BitsPerPixel( Format ) / 8;
 	texResource.SlicePitch = texResource.RowPitch * Height;
 
-	CommandContext::InitializeTexture(*this, 1, &texResource);
+	CommandContext::InitializeTexture( *this, 1, &texResource );
 
 	if (m_hCpuDescriptorHandle.ptr == ~0ull)
 		m_hCpuDescriptorHandle = Graphics::g_pCSUDescriptorHeap->Append().GetCPUHandle();
-	Graphics::g_device->CreateShaderResourceView(m_pResource.Get(), nullptr, m_hCpuDescriptorHandle);
+	Graphics::g_device->CreateShaderResourceView( m_pResource.Get(), nullptr, m_hCpuDescriptorHandle );
 }
 
 void Texture::Destroy()
@@ -802,7 +802,7 @@ void Texture::Destroy()
 	GpuResource::Destroy();
 }
 
-const D3D12_CPU_DESCRIPTOR_HANDLE& Texture::GetSRV() const 
+const D3D12_CPU_DESCRIPTOR_HANDLE& Texture::GetSRV() const
 {
 	return m_hCpuDescriptorHandle;
 }

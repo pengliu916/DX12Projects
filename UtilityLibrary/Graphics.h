@@ -11,22 +11,22 @@ class SamplerDescriptor;
 
 namespace Graphics
 {
-    // Framework level gfx resource
-    extern Microsoft::WRL::ComPtr<IDXGIFactory4>	g_factory;
+	// Framework level gfx resource
+	extern Microsoft::WRL::ComPtr<IDXGIFactory4>	g_factory;
 	extern Microsoft::WRL::ComPtr<IDXGIAdapter3>	g_adaptor;
-    extern Microsoft::WRL::ComPtr<ID3D12Device>		g_device;
-    extern Microsoft::WRL::ComPtr<IDXGISwapChain3>	g_swapChain;
+	extern Microsoft::WRL::ComPtr<ID3D12Device>		g_device;
+	extern Microsoft::WRL::ComPtr<IDXGISwapChain3>	g_swapChain;
 	extern CmdListMngr								g_cmdListMngr;
 	extern ContextManager							g_ContextMngr;
-    extern DescriptorHeap*							g_pRTVDescriptorHeap;
-    extern DescriptorHeap*							g_pDSVDescriptorHeap;
-    extern DescriptorHeap*							g_pSMPDescriptorHeap;
-    extern DescriptorHeap*							g_pCSUDescriptorHeap;
+	extern DescriptorHeap*							g_pRTVDescriptorHeap;
+	extern DescriptorHeap*							g_pDSVDescriptorHeap;
+	extern DescriptorHeap*							g_pSMPDescriptorHeap;
+	extern DescriptorHeap*							g_pCSUDescriptorHeap;
 	extern ColorBuffer*								g_pDisplayPlanes;
-    extern uint32_t									g_CurrentDPIdx;
+	extern uint32_t									g_CurrentDPIdx;
 
-    extern D3D12_VIEWPORT							g_DisplayPlaneViewPort;
-    extern D3D12_RECT								g_DisplayPlaneScissorRect;
+	extern D3D12_VIEWPORT							g_DisplayPlaneViewPort;
+	extern D3D12_RECT								g_DisplayPlaneScissorRect;
 
 	extern SamplerDesc								g_SamplerLinearClampDesc;
 	extern SamplerDescriptor						g_SamplerLinearClamp;
@@ -50,11 +50,11 @@ namespace Graphics
 	extern D3D12_DEPTH_STENCIL_DESC					g_DepthStateReadOnlyReversed;
 	extern D3D12_DEPTH_STENCIL_DESC					g_DepthStateTestEqual;
 
-    void Init();
-    void Shutdown();
-    void Resize();
-    void Present(CommandContext& EngineContext);
-    HRESULT CreateResource();
-    HRESULT CompileShaderFromFile( LPCWSTR pFileName, const D3D_SHADER_MACRO* pDefines, ID3DInclude* pInclude,
-                                   LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob** ppCode );
+	void Init();
+	void Shutdown();
+	void Resize();
+	void Present( CommandContext& EngineContext );
+	HRESULT CreateResource();
+	HRESULT CompileShaderFromFile( LPCWSTR pFileName, const D3D_SHADER_MACRO* pDefines, ID3DInclude* pInclude,
+		LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob** ppCode );
 }

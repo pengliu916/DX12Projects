@@ -14,16 +14,19 @@ class GpuResource
 
 public:
 	GpuResource() :
-		m_GpuVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS_NULL),
-		m_UsageState(D3D12_RESOURCE_STATE_COMMON),
-		m_TransitioningState((D3D12_RESOURCE_STATES)-1){}
+		m_GpuVirtualAddress( D3D12_GPU_VIRTUAL_ADDRESS_NULL ),
+		m_UsageState( D3D12_RESOURCE_STATE_COMMON ),
+		m_TransitioningState( (D3D12_RESOURCE_STATES)-1 ) {}
 
-	GpuResource(ID3D12Resource* pResource, D3D12_RESOURCE_STATES CurrentState) :
-		m_pResource(pResource),
-		m_UsageState(CurrentState),
-		m_TransitioningState((D3D12_RESOURCE_STATES)-1)	{m_GpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_NULL;}
+	GpuResource( ID3D12Resource* pResource, D3D12_RESOURCE_STATES CurrentState ) :
+		m_pResource( pResource ),
+		m_UsageState( CurrentState ),
+		m_TransitioningState( (D3D12_RESOURCE_STATES)-1 ) 
+	{
+		m_GpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_NULL;
+	}
 
-	void Destroy(){	m_pResource = nullptr;}
+	void Destroy() { m_pResource = nullptr; }
 
 	ID3D12Resource* operator->() { return m_pResource.Get(); }
 	const ID3D12Resource* operator->() const { return m_pResource.Get(); }
@@ -46,28 +49,28 @@ protected:
 class PixelBuffer : public GpuResource
 {
 public:
-	PixelBuffer() :m_Width(0), m_Height(0) {}
+	PixelBuffer() :m_Width( 0 ), m_Height( 0 ) {}
 	uint32_t GetWidth() const { return m_Width; }
 	uint32_t GetHeight() const { return m_Height; }
 	uint32_t GetDepth() const { return m_ArraySize; }
 	const DXGI_FORMAT& GetFormat() const { return m_Format; }
 
 protected:
-	D3D12_RESOURCE_DESC DescribeTex2D(uint32_t Width, uint32_t Height, uint32_t DepthOrArraySize,
-		uint32_t NumMips, DXGI_FORMAT Format, UINT Flags);
+	D3D12_RESOURCE_DESC DescribeTex2D( uint32_t Width, uint32_t Height, uint32_t DepthOrArraySize,
+		uint32_t NumMips, DXGI_FORMAT Format, UINT Flags );
 
-	void AssociateWithResource(ID3D12Device* Device, const std::wstring& Name,
-		ID3D12Resource* Resource, D3D12_RESOURCE_STATES CurrentState);
+	void AssociateWithResource( ID3D12Device* Device, const std::wstring& Name,
+		ID3D12Resource* Resource, D3D12_RESOURCE_STATES CurrentState );
 
-	void CreateTextureResource(ID3D12Device* Device, const std::wstring& Name,
-		const D3D12_RESOURCE_DESC& ResourceDesc, D3D12_CLEAR_VALUE ClearValue, 
-		D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN);
+	void CreateTextureResource( ID3D12Device* Device, const std::wstring& Name,
+		const D3D12_RESOURCE_DESC& ResourceDesc, D3D12_CLEAR_VALUE ClearValue,
+		D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN );
 
-	static DXGI_FORMAT GetBaseFormat(DXGI_FORMAT Format);
-	static DXGI_FORMAT GetUAVFormat(DXGI_FORMAT Format);
-	static DXGI_FORMAT GetDSVFormat(DXGI_FORMAT Format);
-	static DXGI_FORMAT GetDepthFormat(DXGI_FORMAT Format);
-	static DXGI_FORMAT GetStencilFormat(DXGI_FORMAT Format);
+	static DXGI_FORMAT GetBaseFormat( DXGI_FORMAT Format );
+	static DXGI_FORMAT GetUAVFormat( DXGI_FORMAT Format );
+	static DXGI_FORMAT GetDSVFormat( DXGI_FORMAT Format );
+	static DXGI_FORMAT GetDepthFormat( DXGI_FORMAT Format );
+	static DXGI_FORMAT GetStencilFormat( DXGI_FORMAT Format );
 
 	uint32_t m_Width;
 	uint32_t m_Height;
@@ -81,23 +84,23 @@ protected:
 class ColorBuffer : public PixelBuffer
 {
 public:
-	ColorBuffer(DirectX::XMVECTOR ClearColor = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f));
-	void CreateFromSwapChain(const std::wstring& Name, ID3D12Resource* BaseResource);
-	void Create(const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t NumMips,
-		DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN);
+	ColorBuffer( DirectX::XMVECTOR ClearColor = DirectX::XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f ) );
+	void CreateFromSwapChain( const std::wstring& Name, ID3D12Resource* BaseResource );
+	void Create( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t NumMips,
+		DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN );
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV() const { return m_SRVHandle; }
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetRTV() const { return m_RTVHandle; }
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetUAV() const { return m_UAVHandle[0]; }
 	DirectX::XMVECTOR GetClearColor() const { return m_ClearColor; }
 
 protected:
-	static inline uint32_t ComputeNumMips(uint32_t Width, uint32_t Height)
+	static inline uint32_t ComputeNumMips( uint32_t Width, uint32_t Height )
 	{
 		uint32_t HighBit;
-		_BitScanReverse((unsigned long*)&HighBit, Width | Height);
+		_BitScanReverse( (unsigned long*)&HighBit, Width | Height );
 		return HighBit + 1;
 	}
-	void CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips = 1);
+	void CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips = 1 );
 
 	DirectX::XMVECTOR m_ClearColor;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_SRVHandle;
@@ -112,9 +115,9 @@ protected:
 class DepthBuffer : public PixelBuffer
 {
 public:
-	DepthBuffer(FLOAT ClearDepth = .0f, UINT8 ClearStencil = 0);
-	void Create(const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT format,
-		D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN);
+	DepthBuffer( FLOAT ClearDepth = .0f, UINT8 ClearStencil = 0 );
+	void Create( const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT format,
+		D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN );
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetDSV() const { return m_DSVHandle[0]; }
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetDSV_DepthReadOnly() const { return m_DSVHandle[1]; }
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetDSV_StencilReadOnly() const { return m_DSVHandle[2]; }
@@ -125,7 +128,7 @@ public:
 	uint32_t GetClearStencil() const { return m_ClearStencil; }
 
 protected:
-	void CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format);
+	void CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format );
 	FLOAT m_ClearDepth;
 	UINT8 m_ClearStencil;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_DSVHandle[4];
@@ -141,17 +144,17 @@ class GpuBuffer :public GpuResource
 public:
 	virtual ~GpuBuffer() { Destroy(); }
 	virtual void Destroy();
-	void Create(const std::wstring& Name, uint32_t NumElements, uint32_t ElementSize, const void* InitData = nullptr);
-	void CreatePlaced(const std::wstring& Name, ID3D12Heap* BackingHeap, uint32_t HeapOffset, uint32_t NumElements,
-		uint32_t ElementSize, const void* InitData = nullptr);
+	void Create( const std::wstring& Name, uint32_t NumElements, uint32_t ElementSize, const void* InitData = nullptr );
+	void CreatePlaced( const std::wstring& Name, ID3D12Heap* BackingHeap, uint32_t HeapOffset, uint32_t NumElements,
+		uint32_t ElementSize, const void* InitData = nullptr );
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetUAV() const { return m_UAV; }
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV() const { return m_SRV; }
 	D3D12_GPU_VIRTUAL_ADDRESS RootConstantBufferView() const { return m_GpuVirtualAddress; }
-	D3D12_CPU_DESCRIPTOR_HANDLE CreateConstantBufferView(uint32_t Offset, uint32_t Size) const;
-	D3D12_VERTEX_BUFFER_VIEW VertexBufferView(size_t Offset, uint32_t Size, uint32_t Stride) const;
-	D3D12_VERTEX_BUFFER_VIEW VertexBufferView(size_t BaseVertexIndex = 0) const;
-	D3D12_INDEX_BUFFER_VIEW IndexBufferView(size_t Offset, uint32_t Size, bool b32Bit = false) const;
-	D3D12_INDEX_BUFFER_VIEW IndexBufferView(size_t StartIndex = 0) const;
+	D3D12_CPU_DESCRIPTOR_HANDLE CreateConstantBufferView( uint32_t Offset, uint32_t Size ) const;
+	D3D12_VERTEX_BUFFER_VIEW VertexBufferView( size_t Offset, uint32_t Size, uint32_t Stride ) const;
+	D3D12_VERTEX_BUFFER_VIEW VertexBufferView( size_t BaseVertexIndex = 0 ) const;
+	D3D12_INDEX_BUFFER_VIEW IndexBufferView( size_t Offset, uint32_t Size, bool b32Bit = false ) const;
+	D3D12_INDEX_BUFFER_VIEW IndexBufferView( size_t StartIndex = 0 ) const;
 
 protected:
 	GpuBuffer();
@@ -167,7 +170,7 @@ protected:
 	D3D12_RESOURCE_FLAGS m_ResourceFlags;
 };
 
-inline D3D12_VERTEX_BUFFER_VIEW GpuBuffer::VertexBufferView(size_t Offset, uint32_t Size, uint32_t Stride) const
+inline D3D12_VERTEX_BUFFER_VIEW GpuBuffer::VertexBufferView( size_t Offset, uint32_t Size, uint32_t Stride ) const
 {
 	D3D12_VERTEX_BUFFER_VIEW VBView;
 	VBView.BufferLocation = m_GpuVirtualAddress + Offset;
@@ -176,13 +179,13 @@ inline D3D12_VERTEX_BUFFER_VIEW GpuBuffer::VertexBufferView(size_t Offset, uint3
 	return VBView;
 }
 
-inline D3D12_VERTEX_BUFFER_VIEW GpuBuffer::VertexBufferView(size_t BaseVertexIndex /* = 0 */) const
+inline D3D12_VERTEX_BUFFER_VIEW GpuBuffer::VertexBufferView( size_t BaseVertexIndex /* = 0 */ ) const
 {
 	size_t Offset = BaseVertexIndex * m_ElementSize;
-	return VertexBufferView(Offset, (uint32_t)(m_BufferSize - Offset), m_ElementSize);
+	return VertexBufferView( Offset, (uint32_t)(m_BufferSize - Offset), m_ElementSize );
 }
 
-inline D3D12_INDEX_BUFFER_VIEW GpuBuffer::IndexBufferView(size_t Offset, uint32_t Size, bool b32Bit) const
+inline D3D12_INDEX_BUFFER_VIEW GpuBuffer::IndexBufferView( size_t Offset, uint32_t Size, bool b32Bit ) const
 {
 	D3D12_INDEX_BUFFER_VIEW IBView;
 	IBView.BufferLocation = m_GpuVirtualAddress + Offset;
@@ -191,10 +194,10 @@ inline D3D12_INDEX_BUFFER_VIEW GpuBuffer::IndexBufferView(size_t Offset, uint32_
 	return IBView;
 }
 
-inline D3D12_INDEX_BUFFER_VIEW GpuBuffer::IndexBufferView(size_t StartIndex /*= 0*/) const
+inline D3D12_INDEX_BUFFER_VIEW GpuBuffer::IndexBufferView( size_t StartIndex /*= 0*/ ) const
 {
 	size_t Offset = StartIndex * m_ElementSize;
-	return IndexBufferView(Offset, (uint32_t)(m_BufferSize - Offset), m_ElementSize == 4);
+	return IndexBufferView( Offset, (uint32_t)(m_BufferSize - Offset), m_ElementSize == 4 );
 }
 
 //--------------------------------------------------------------------------------------
@@ -215,7 +218,6 @@ public:
 	virtual void CreateDerivedViews() override;
 };
 
-
 //--------------------------------------------------------------------------------------
 // Texture
 //--------------------------------------------------------------------------------------
@@ -224,10 +226,10 @@ class Texture : public GpuResource
 	friend class CommandContext;
 public:
 	Texture();
-	Texture(D3D12_CPU_DESCRIPTOR_HANDLE Handle);
+	Texture( D3D12_CPU_DESCRIPTOR_HANDLE Handle );
 
 	// Create a 2D texture
-	void Create(size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData);
+	void Create( size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData );
 	/*void CreateTGAFromMemory(const void* memBuffer, size_t fileSize, bool sRGB);
 	bool CreateDDSFromMemory(const void* memBuffer, size_t fileSize, bool sRGB);*/
 	void Destroy();

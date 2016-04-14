@@ -15,53 +15,53 @@ using namespace Microsoft::WRL;
 class VolumetricAnimation : public Core::IDX12Framework
 {
 public:
-    VolumetricAnimation( uint32_t width, uint32_t height, std::wstring name );
-    ~VolumetricAnimation();
+	VolumetricAnimation( uint32_t width, uint32_t height, std::wstring name );
+	~VolumetricAnimation();
 
-    virtual void OnConfiguration();
-    virtual HRESULT OnCreateResource();
-    virtual HRESULT OnSizeChanged();
-    virtual void OnUpdate();
-    virtual void OnRender(CommandContext& EngineContext);
-    virtual void OnDestroy();
-    virtual bool OnEvent( MSG* msg );
+	virtual void OnConfiguration();
+	virtual HRESULT OnCreateResource();
+	virtual HRESULT OnSizeChanged();
+	virtual void OnUpdate();
+	virtual void OnRender( CommandContext& EngineContext );
+	virtual void OnDestroy();
+	virtual bool OnEvent( MSG* msg );
 
 private:
-    struct Vertex
-    {
-        XMFLOAT3 position;
-    };
+	struct Vertex
+	{
+		XMFLOAT3 position;
+	};
 
-	uint8_t								m_onStageIdx;
-	int									m_selectedVolumeSize;
-	int									m_OneContext;
-	int									m_SphereAnimation;
-	uint64_t							m_fenceValue;
-    uint32_t                            m_width;
-    uint32_t                            m_height;
+	uint8_t					m_onStageIdx;
+	int						m_selectedVolumeSize;
+	int						m_OneContext;
+	int						m_SphereAnimation;
+	uint64_t				m_fenceValue;
+	uint32_t				m_width;
+	uint32_t				m_height;
 
-    float                               m_camOrbitRadius;
-    float                               m_camMaxOribtRadius;
-    float                               m_camMinOribtRadius;
+	float					m_camOrbitRadius;
+	float					m_camMaxOribtRadius;
+	float					m_camMinOribtRadius;
 
-	DepthBuffer							m_DepthBuffer;
-	StructuredBuffer					m_VertexBuffer;
-	ByteAddressBuffer					m_IndexBuffer;
-	GraphicsPSO							m_GraphicsPSO;
-	GraphicsPSO							m_GraphicsComputePSO;
-	ComputePSO							m_ComputePSO;
-	RootSignature						m_RootSignature;
-	StructuredBuffer					m_VolumeBuffer[2];
+	DepthBuffer				m_DepthBuffer;
+	StructuredBuffer		m_VertexBuffer;
+	ByteAddressBuffer		m_IndexBuffer;
+	GraphicsPSO				m_GraphicsPSO;
+	GraphicsPSO				m_GraphicsComputePSO;
+	ComputePSO				m_ComputePSO;
+	RootSignature			m_RootSignature;
+	StructuredBuffer		m_VolumeBuffer[2];
 
-    OrbitCamera                         m_camera;
-    struct ConstantBuffer*              m_pConstantBufferData;
+	OrbitCamera				m_camera;
+	struct ConstantBuffer*	m_pConstantBufferData;
 
-    uint32_t                            m_volumeWidth;
-    uint32_t                            m_volumeHeight;
-    uint32_t                            m_volumeDepth;
+	uint32_t				m_volumeWidth;
+	uint32_t				m_volumeHeight;
+	uint32_t				m_volumeDepth;
 
-    HRESULT LoadAssets();
-    HRESULT LoadSizeDependentResource();
+	HRESULT LoadAssets();
+	HRESULT LoadSizeDependentResource();
 
-    void ResetCameraView();
+	void ResetCameraView();
 };

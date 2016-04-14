@@ -23,60 +23,58 @@
 class CommandContext;
 namespace Core
 {
-    const uint32_t          NUM_RTV = 64;
-    const uint32_t          NUM_DSV = 64;
-    const uint32_t          NUM_SMP = 128;
-    const uint32_t          NUM_CSU = 128;
+	const uint32_t				NUM_RTV = 64;
+	const uint32_t				NUM_DSV = 64;
+	const uint32_t				NUM_SMP = 128;
+	const uint32_t				NUM_CSU = 128;
 
-    struct Settings
-    {
-        bool                    enableFullScreen;
-        bool                    warpDevice;
-        DXGI_SWAP_CHAIN_DESC1   swapChainDesc;
+	struct Settings
+	{
+		bool					enableFullScreen;
+		bool					warpDevice;
+		DXGI_SWAP_CHAIN_DESC1	swapChainDesc;
 
-        // Free to be changed after init
-        //Vsync
-        bool                    vsync;
-
+		// Free to be changed after init
+		//Vsync
+		bool					vsync;
 		bool					showPerf;
-    };
+	};
 
 	struct Stats
 	{
-		DXGI_QUERY_VIDEO_MEMORY_INFO localVideoMemoryInfo = {};
-		uint16_t allocatorCreated[4] = {};
-		uint16_t allocatorReady[4] = {};
-		uint16_t cpuStallCountPerFrame = 0;
-		double cpuStallTimePerFrame = 0;
-
+		DXGI_QUERY_VIDEO_MEMORY_INFO	localVideoMemoryInfo = {};
+		uint16_t						allocatorCreated[4] = {};
+		uint16_t						allocatorReady[4] = {};
+		uint16_t						cpuStallCountPerFrame = 0;
+		double							cpuStallTimePerFrame = 0;
 	};
 
-    class IDX12Framework
-    {
-    public:
-        // Framework interface for rendering loop
-        virtual void ParseCommandLineArgs();
-        virtual void OnInit(){};
-        virtual void OnConfiguration(){};
-        virtual HRESULT OnCreateResource() = 0;
-        virtual HRESULT OnSizeChanged() = 0;
-        virtual void OnUpdate() = 0;
-        virtual void OnRender(CommandContext& EngineContext) = 0;
-        virtual void OnDestroy() = 0;
-        virtual bool OnEvent( MSG* msg ) = 0;
-    };
+	class IDX12Framework
+	{
+	public:
+		// Framework interface for rendering loop
+		virtual void ParseCommandLineArgs();
+		virtual void OnInit() {};
+		virtual void OnConfiguration() {};
+		virtual HRESULT OnCreateResource() = 0;
+		virtual HRESULT OnSizeChanged() = 0;
+		virtual void OnUpdate() = 0;
+		virtual void OnRender( CommandContext& EngineContext ) = 0;
+		virtual void OnDestroy() = 0;
+		virtual bool OnEvent( MSG* msg ) = 0;
+	};
 
-    int Run( IDX12Framework& application, HINSTANCE hInstance, int nCmdShow );
-    std::wstring GetAssetFullPath( LPCWSTR assetName );
+	int Run( IDX12Framework& application, HINSTANCE hInstance, int nCmdShow );
+	std::wstring GetAssetFullPath( LPCWSTR assetName );
 
 	extern uint64_t		g_tickesPerSecond;		// CPU tickes per second
 	extern uint64_t		g_lastFrameTickCount;	// Total CPU tickes until last frame
 	extern double		g_elapsedTime;			// Elapsed time since program start
 	extern double		g_deltaTime;			// Elapsed time since last frame
-    extern Settings     g_config;				// gfx settings
+	extern Settings     g_config;				// gfx settings
 	extern Stats		g_stats;
-    extern HWND         g_hwnd;					// Window handle.
-    extern std::wstring g_title;
-    extern std::wstring g_assetsPath;			// Root assets path.   
-    extern wchar_t      g_strCustom[256];		// temp variable for display GPU timing
+	extern HWND         g_hwnd;					// Window handle.
+	extern std::wstring g_title;
+	extern std::wstring g_assetsPath;			// Root assets path.   
+	extern wchar_t      g_strCustom[256];		// temp variable for display GPU timing
 }

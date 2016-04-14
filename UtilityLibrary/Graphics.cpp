@@ -56,43 +56,42 @@ namespace
 namespace Graphics
 {
 	// Framework level gfx resource
-	ComPtr<IDXGIFactory4>           g_factory;
-	ComPtr<IDXGIAdapter3>			g_adaptor;
-	ComPtr<ID3D12Device>            g_device;
-	ComPtr<IDXGISwapChain3>         g_swapChain;
-	CmdListMngr						g_cmdListMngr;
-	ContextManager					g_ContextMngr;
-	DescriptorHeap*                 g_pRTVDescriptorHeap;
-	DescriptorHeap*                 g_pDSVDescriptorHeap;
-	DescriptorHeap*                 g_pSMPDescriptorHeap;
-	DescriptorHeap*                 g_pCSUDescriptorHeap;
-	ColorBuffer*					g_pDisplayPlanes;
-	uint32_t                        g_CurrentDPIdx;
-	D3D12_VIEWPORT                  g_DisplayPlaneViewPort;
-	D3D12_RECT                      g_DisplayPlaneScissorRect;
+	ComPtr<IDXGIFactory4>		g_factory;
+	ComPtr<IDXGIAdapter3>		g_adaptor;
+	ComPtr<ID3D12Device>		g_device;
+	ComPtr<IDXGISwapChain3>		g_swapChain;
+	CmdListMngr					g_cmdListMngr;
+	ContextManager				g_ContextMngr;
+	DescriptorHeap*				g_pRTVDescriptorHeap;
+	DescriptorHeap*				g_pDSVDescriptorHeap;
+	DescriptorHeap*				g_pSMPDescriptorHeap;
+	DescriptorHeap*				g_pCSUDescriptorHeap;
+	ColorBuffer*				g_pDisplayPlanes;
+	uint32_t					g_CurrentDPIdx;
+	D3D12_VIEWPORT				g_DisplayPlaneViewPort;
+	D3D12_RECT					g_DisplayPlaneScissorRect;
 
-	SamplerDesc						g_SamplerLinearClampDesc;
-	SamplerDescriptor				g_SamplerLinearClamp;
-	SamplerDesc						g_SamplerLinearWrapDesc;
-	SamplerDescriptor				g_SamplerLinearWrap;
+	SamplerDesc					g_SamplerLinearClampDesc;
+	SamplerDescriptor			g_SamplerLinearClamp;
+	SamplerDesc					g_SamplerLinearWrapDesc;
+	SamplerDescriptor			g_SamplerLinearWrap;
 
-	D3D12_RASTERIZER_DESC			g_RasterizerDefault;
-	D3D12_RASTERIZER_DESC			g_RasterizerDefaultCW;
-	D3D12_RASTERIZER_DESC			g_RasterizerTwoSided;
+	D3D12_RASTERIZER_DESC		g_RasterizerDefault;
+	D3D12_RASTERIZER_DESC		g_RasterizerDefaultCW;
+	D3D12_RASTERIZER_DESC		g_RasterizerTwoSided;
 
-	D3D12_BLEND_DESC				g_BlendNoColorWrite;
-	D3D12_BLEND_DESC				g_BlendDisable;
-	D3D12_BLEND_DESC				g_BlendPreMultiplied;
-	D3D12_BLEND_DESC				g_BlendTraditional;
-	D3D12_BLEND_DESC				g_BlendAdditive;
-	D3D12_BLEND_DESC				g_BlendTraditionalAdditive;
+	D3D12_BLEND_DESC			g_BlendNoColorWrite;
+	D3D12_BLEND_DESC			g_BlendDisable;
+	D3D12_BLEND_DESC			g_BlendPreMultiplied;
+	D3D12_BLEND_DESC			g_BlendTraditional;
+	D3D12_BLEND_DESC			g_BlendAdditive;
+	D3D12_BLEND_DESC			g_BlendTraditionalAdditive;
 
-	D3D12_DEPTH_STENCIL_DESC		g_DepthStateDisabled;
-	D3D12_DEPTH_STENCIL_DESC		g_DepthStateReadWrite;
-	D3D12_DEPTH_STENCIL_DESC		g_DepthStateReadOnly;
-	D3D12_DEPTH_STENCIL_DESC		g_DepthStateReadOnlyReversed;
-	D3D12_DEPTH_STENCIL_DESC		g_DepthStateTestEqual;
-
+	D3D12_DEPTH_STENCIL_DESC	g_DepthStateDisabled;
+	D3D12_DEPTH_STENCIL_DESC	g_DepthStateReadWrite;
+	D3D12_DEPTH_STENCIL_DESC	g_DepthStateReadOnly;
+	D3D12_DEPTH_STENCIL_DESC	g_DepthStateReadOnlyReversed;
+	D3D12_DEPTH_STENCIL_DESC	g_DepthStateTestEqual;
 
 	void Init()
 	{
@@ -132,7 +131,6 @@ namespace Graphics
 		PSO::DestroyAll();
 		RootSignature::DestroyAll();
 		DynamicDescriptorHeap::Shutdown();
-
 
 		LinearAllocator::DestroyAll();
 

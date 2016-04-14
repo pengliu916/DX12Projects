@@ -32,19 +32,19 @@ SamplerDesc::SamplerDesc()
 	MaxLOD = D3D12_FLOAT32_MAX;
 }
 
-void SamplerDesc::SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE AddressMode)
+void SamplerDesc::SetTextureAddressMode( D3D12_TEXTURE_ADDRESS_MODE AddressMode )
 {
 	AddressU = AddressMode;
 	AddressV = AddressMode;
 	AddressW = AddressMode;
 }
 
-void SamplerDesc::SetBorderColor(DirectX::XMVECTOR BorderCol)
+void SamplerDesc::SetBorderColor( DirectX::XMVECTOR BorderCol )
 {
-	BorderColor[0] = DirectX::XMVectorGetX(BorderCol);
-	BorderColor[1] = DirectX::XMVectorGetY(BorderCol);
-	BorderColor[2] = DirectX::XMVectorGetZ(BorderCol);
-	BorderColor[3] = DirectX::XMVectorGetW(BorderCol);
+	BorderColor[0] = DirectX::XMVectorGetX( BorderCol );
+	BorderColor[1] = DirectX::XMVectorGetY( BorderCol );
+	BorderColor[2] = DirectX::XMVectorGetZ( BorderCol );
+	BorderColor[3] = DirectX::XMVectorGetW( BorderCol );
 }
 
 //--------------------------------------------------------------------------------------
@@ -52,22 +52,22 @@ void SamplerDesc::SetBorderColor(DirectX::XMVECTOR BorderCol)
 //--------------------------------------------------------------------------------------
 SamplerDescriptor::SamplerDescriptor() {}
 
-SamplerDescriptor::SamplerDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE hCpuDescriptor)
-	:m_hCpuDescriptorHandle(hCpuDescriptor)
+SamplerDescriptor::SamplerDescriptor( D3D12_CPU_DESCRIPTOR_HANDLE hCpuDescriptor )
+	:m_hCpuDescriptorHandle( hCpuDescriptor )
 {
 }
 
-void SamplerDescriptor::Create(const D3D12_SAMPLER_DESC& Desc)
+void SamplerDescriptor::Create( const D3D12_SAMPLER_DESC& Desc )
 {
-	size_t hashValue = HashState(&Desc);
-	auto iter = s_SamplerCache.find(hashValue);
+	size_t hashValue = HashState( &Desc );
+	auto iter = s_SamplerCache.find( hashValue );
 	if (iter != s_SamplerCache.end())
 	{
-		*this = SamplerDescriptor(iter->second);
+		*this = SamplerDescriptor( iter->second );
 		return;
 	}
 	m_hCpuDescriptorHandle = Graphics::g_pSMPDescriptorHeap->Append().GetCPUHandle();
-	Graphics::g_device->CreateSampler(&Desc, m_hCpuDescriptorHandle);
+	Graphics::g_device->CreateSampler( &Desc, m_hCpuDescriptorHandle );
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE SamplerDescriptor::GetCpuDescriptorHandle() const

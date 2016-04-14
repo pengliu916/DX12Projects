@@ -5,32 +5,32 @@ class GraphicsContext;
 
 namespace GPU_Profiler
 {
-    const uint8_t MAX_TIMER_NAME_LENGTH = 32;
-    const uint8_t MAX_TIMER_COUNT = 32;
+	const uint8_t MAX_TIMER_NAME_LENGTH = 32;
+	const uint8_t MAX_TIMER_COUNT = 32;
 
 	void Initialize();
-    HRESULT CreateResource();
-    void ShutDown();
-    void ProcessAndReadback(CommandContext& EngineContext);
+	HRESULT CreateResource();
+	void ShutDown();
+	void ProcessAndReadback( CommandContext& EngineContext );
 	uint16_t FillVertexData();
-	void DrawStats(GraphicsContext& gfxContext);
-    double ReadTimer( uint8_t idx, double* start = nullptr, double* stop = nullptr );
-    uint16_t GetTimingStr( uint8_t idx, wchar_t* outStr );
+	void DrawStats( GraphicsContext& gfxContext );
+	double ReadTimer( uint8_t idx, double* start = nullptr, double* stop = nullptr );
+	uint16_t GetTimingStr( uint8_t idx, wchar_t* outStr );
 };
 
 class GPUProfileScope
 {
 public:
-    GPUProfileScope( CommandContext& Context, const wchar_t* szName );
-    ~GPUProfileScope();
+	GPUProfileScope( CommandContext& Context, const wchar_t* szName );
+	~GPUProfileScope();
 
-    // Prevent copying
-    GPUProfileScope( GPUProfileScope const& ) = delete;
-    GPUProfileScope& operator= ( GPUProfileScope const& ) = delete;
+	// Prevent copying
+	GPUProfileScope( GPUProfileScope const& ) = delete;
+	GPUProfileScope& operator= ( GPUProfileScope const& ) = delete;
 
 private:
-    CommandContext& m_Context;
-    uint32_t m_idx;
+	CommandContext& m_Context;
+	uint32_t m_idx;
 };
 
 // Anon macros, used to create anonymous variables in macros.

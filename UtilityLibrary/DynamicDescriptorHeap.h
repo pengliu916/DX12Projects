@@ -7,7 +7,7 @@
 class DynamicDescriptorHeap
 {
 public:
-	DynamicDescriptorHeap(CommandContext& OwningContext);
+	DynamicDescriptorHeap( CommandContext& OwningContext );
 	~DynamicDescriptorHeap();
 
 	static void Initialize();
@@ -15,14 +15,14 @@ public:
 	static void DestroyAll();
 	static uint32_t GetDescriptorSize();
 
-	void CleanupUsedHeaps(uint64_t fenceValue);
-	void SetGraphicsDescriptorHandles(UINT RootIndex, UINT Offset, UINT NumHandles, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[]);
-	void SetComputeDescriptorHandles(UINT RootIndex, UINT Offset, UINT NumHandles, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[]);
-	D3D12_GPU_DESCRIPTOR_HANDLE UploadDirect(D3D12_CPU_DESCRIPTOR_HANDLE Handles);
-	void ParseGraphicsRootSignature(const RootSignature& RootSig);
-	void ParseComputeRootSignature(const RootSignature& RootSig);
-	void CommitGraphicsRootDescriptorTables(ID3D12GraphicsCommandList* CmdList);
-	void CommitComputeRootDescriptorTables(ID3D12GraphicsCommandList* CmdList);
+	void CleanupUsedHeaps( uint64_t fenceValue );
+	void SetGraphicsDescriptorHandles( UINT RootIndex, UINT Offset, UINT NumHandles, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[] );
+	void SetComputeDescriptorHandles( UINT RootIndex, UINT Offset, UINT NumHandles, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[] );
+	D3D12_GPU_DESCRIPTOR_HANDLE UploadDirect( D3D12_CPU_DESCRIPTOR_HANDLE Handles );
+	void ParseGraphicsRootSignature( const RootSignature& RootSig );
+	void ParseComputeRootSignature( const RootSignature& RootSig );
+	void CommitGraphicsRootDescriptorTables( ID3D12GraphicsCommandList* CmdList );
+	void CommitComputeRootDescriptorTables( ID3D12GraphicsCommandList* CmdList );
 
 private:
 	struct DescriptorTableCache
@@ -38,11 +38,11 @@ private:
 		DescriptorHandleCache();
 		void ClearCache();
 		uint32_t ComputeStagedSize();
-		void CopyAndBindStaleTables(DescriptorHandle DestHandleStart, ID3D12GraphicsCommandList* CmdList,
-			void(STDMETHODCALLTYPE ID3D12GraphicsCommandList::*SetFunc)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE));
+		void CopyAndBindStaleTables( DescriptorHandle DestHandleStart, ID3D12GraphicsCommandList* CmdList,
+			void(STDMETHODCALLTYPE ID3D12GraphicsCommandList::*SetFunc)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE) );
 		void UnbindAllValid();
-		void StageDescriptorHandles(UINT RootIndex, UINT Offset, UINT NumHandles, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[]);
-		void ParseRootSignature(const RootSignature& RootSig);
+		void StageDescriptorHandles( UINT RootIndex, UINT Offset, UINT NumHandles, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[] );
+		void ParseRootSignature( const RootSignature& RootSig );
 
 		static const uint32_t kMaxNumDescriptors = 256;
 		static const uint32_t kMaxNumDescriptorTables = 16;
@@ -56,15 +56,15 @@ private:
 	};
 
 	static ID3D12DescriptorHeap* RequestDescriptorHeap();
-	static void DiscardDescriptorHeaps(uint64_t FenceValueForReset, const std::vector<ID3D12DescriptorHeap*>& UsedHeaps);
-	
-	bool HasSpace(uint32_t Count);
+	static void DiscardDescriptorHeaps( uint64_t FenceValueForReset, const std::vector<ID3D12DescriptorHeap*>& UsedHeaps );
+
+	bool HasSpace( uint32_t Count );
 	void RetireCurrentHeap();
-	void RetireUsedHeaps(uint64_t FenceValue);
+	void RetireUsedHeaps( uint64_t FenceValue );
 	ID3D12DescriptorHeap* GetHeapPointer();
-	DescriptorHandle Allocate(UINT Count);
-	void CopyAndBindStagedTables(DescriptorHandleCache& HandleCache, ID3D12GraphicsCommandList* CmdList,
-		void(STDMETHODCALLTYPE ID3D12GraphicsCommandList::*SetFunc)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE));
+	DescriptorHandle Allocate( UINT Count );
+	void CopyAndBindStagedTables( DescriptorHandleCache& HandleCache, ID3D12GraphicsCommandList* CmdList,
+		void(STDMETHODCALLTYPE ID3D12GraphicsCommandList::*SetFunc)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE) );
 	void UnbindAllValid();
 
 	static const uint32_t kNumDescriptorsPerHeap = 1024;
@@ -83,25 +83,25 @@ private:
 	std::vector<ID3D12DescriptorHeap*> m_RetiredHeaps;
 };
 
-inline void DynamicDescriptorHeap::CommitGraphicsRootDescriptorTables(ID3D12GraphicsCommandList* CmdList)
+inline void DynamicDescriptorHeap::CommitGraphicsRootDescriptorTables( ID3D12GraphicsCommandList* CmdList )
 {
 	if (m_GraphicsHandleCache.m_StaleRootParamsBitMap != 0)
-		CopyAndBindStagedTables(m_GraphicsHandleCache, CmdList, &ID3D12GraphicsCommandList::SetGraphicsRootDescriptorTable);
+		CopyAndBindStagedTables( m_GraphicsHandleCache, CmdList, &ID3D12GraphicsCommandList::SetGraphicsRootDescriptorTable );
 }
 
-inline void DynamicDescriptorHeap::CommitComputeRootDescriptorTables(ID3D12GraphicsCommandList* CmdList)
+inline void DynamicDescriptorHeap::CommitComputeRootDescriptorTables( ID3D12GraphicsCommandList* CmdList )
 {
 	if (m_ComputeHandleCache.m_StaleRootParamsBitMap != 0)
-		CopyAndBindStagedTables(m_ComputeHandleCache, CmdList, &ID3D12GraphicsCommandList::SetComputeRootDescriptorTable);
+		CopyAndBindStagedTables( m_ComputeHandleCache, CmdList, &ID3D12GraphicsCommandList::SetComputeRootDescriptorTable );
 }
 
 inline ID3D12DescriptorHeap* DynamicDescriptorHeap::GetHeapPointer()
 {
 	if (m_CurrentHeapPtr == nullptr)
 	{
-		ASSERT(m_CurrentOffset == 0);
+		ASSERT( m_CurrentOffset == 0 );
 		m_CurrentHeapPtr = RequestDescriptorHeap();
-		m_FirstDescriptor = DescriptorHandle(m_CurrentHeapPtr->GetCPUDescriptorHandleForHeapStart(), m_CurrentHeapPtr->GetGPUDescriptorHandleForHeapStart());
+		m_FirstDescriptor = DescriptorHandle( m_CurrentHeapPtr->GetCPUDescriptorHandleForHeapStart(), m_CurrentHeapPtr->GetGPUDescriptorHandleForHeapStart() );
 	}
 	return m_CurrentHeapPtr;
 }

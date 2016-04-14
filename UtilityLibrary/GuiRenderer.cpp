@@ -32,25 +32,25 @@ namespace
 	// This is the main rendering function that you have to implement and provide to ImGui (via setting up 'RenderDrawListsFn' in the ImGuiIO structure)
 	// If text or lines are blurry when integrating ImGui in your engine:
 	// - in your Render function, try translating your projection matrix by (0.5f,0.5f) or (0.375f,0.375f)
-	void ImGuiRender(ImDrawData* draw_data, GraphicsContext& context)
+	void ImGuiRender( ImDrawData* draw_data, GraphicsContext& context )
 	{
 		{
-			GPU_PROFILE(context, L"GUI");
-			context.SetRootSignature(_rootSignature);
-			context.SetPipelineState(_graphicsPSO);
+			GPU_PROFILE( context, L"GUI" );
+			context.SetRootSignature( _rootSignature );
+			context.SetPipelineState( _graphicsPSO );
 
-			size_t VBSize = draw_data->TotalVtxCount * sizeof(ImDrawVert);
-			size_t IBSize = draw_data->TotalIdxCount * sizeof(ImDrawIdx);
-			DynAlloc vb = context.m_CpuLinearAllocator.Allocate(VBSize);
-			DynAlloc ib = context.m_CpuLinearAllocator.Allocate(IBSize);
+			size_t VBSize = draw_data->TotalVtxCount * sizeof( ImDrawVert );
+			size_t IBSize = draw_data->TotalIdxCount * sizeof( ImDrawIdx );
+			DynAlloc vb = context.m_CpuLinearAllocator.Allocate( VBSize );
+			DynAlloc ib = context.m_CpuLinearAllocator.Allocate( IBSize );
 
 			ImDrawVert* vtx_dst = (ImDrawVert*)vb.DataPtr;
 			ImDrawIdx* idx_dst = (ImDrawIdx*)ib.DataPtr;
 			for (int n = 0; n < draw_data->CmdListsCount; n++)
 			{
 				const ImDrawList* cmd_list = draw_data->CmdLists[n];
-				memcpy(vtx_dst, &cmd_list->VtxBuffer[0], cmd_list->VtxBuffer.size() * sizeof(ImDrawVert));
-				memcpy(idx_dst, &cmd_list->IdxBuffer[0], cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx));
+				memcpy( vtx_dst, &cmd_list->VtxBuffer[0], cmd_list->VtxBuffer.size() * sizeof( ImDrawVert ) );
+				memcpy( idx_dst, &cmd_list->IdxBuffer[0], cmd_list->IdxBuffer.size() * sizeof( ImDrawIdx ) );
 				vtx_dst += cmd_list->VtxBuffer.size();
 				idx_dst += cmd_list->IdxBuffer.size();
 			}
@@ -58,15 +58,15 @@ namespace
 			D3D12_VERTEX_BUFFER_VIEW VBView;
 			VBView.BufferLocation = vb.GpuAddress;
 			VBView.SizeInBytes = (UINT)VBSize;
-			VBView.StrideInBytes = sizeof(ImDrawVert);
+			VBView.StrideInBytes = sizeof( ImDrawVert );
 
 			D3D12_INDEX_BUFFER_VIEW IBView;
 			IBView.BufferLocation = ib.GpuAddress;
 			IBView.SizeInBytes = (UINT)IBSize;
 			IBView.Format = DXGI_FORMAT_R16_UINT;
 
-			context.SetDynamicVB(0, VBView);
-			context.SetDynamicIB(IBView);
+			context.SetDynamicVB( 0, VBView );
+			context.SetDynamicIB( IBView );
 
 			float L = 0.0f;
 			float R = ImGui::GetIO().DisplaySize.x;
@@ -79,20 +79,20 @@ namespace
 				{ 0.0f,         0.0f,           0.5f,       0.0f },
 				{ (R + L) / (L - R),  (T + B) / (B - T),    0.5f,       1.0f },
 			};
-			context.SetDynamicConstantBufferView(0, sizeof(mvp), mvp);
-			context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			context.SetRenderTargets(1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx]);
-			context.SetViewport(Graphics::g_DisplayPlaneViewPort);
-			context.SetScisor(Graphics::g_DisplayPlaneScissorRect);
+			context.SetDynamicConstantBufferView( 0, sizeof( mvp ), mvp );
+			context.SetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+			context.SetRenderTargets( 1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx] );
+			context.SetViewport( Graphics::g_DisplayPlaneViewPort );
+			context.SetScisor( Graphics::g_DisplayPlaneScissorRect );
 			// Setup viewport
 			D3D12_VIEWPORT vp;
-			memset(&vp, 0, sizeof(D3D12_VIEWPORT));
+			memset( &vp, 0, sizeof( D3D12_VIEWPORT ) );
 			vp.Width = ImGui::GetIO().DisplaySize.x;
 			vp.Height = ImGui::GetIO().DisplaySize.y;
 			vp.MinDepth = 0.0f;
 			vp.MaxDepth = 1.0f;
 			vp.TopLeftX = vp.TopLeftY = 0.0f;
-			context.SetViewport(vp);
+			context.SetViewport( vp );
 
 			// Render command lists
 			int vtx_offset = 0;
@@ -105,14 +105,14 @@ namespace
 					const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
 					if (pcmd->UserCallback)
 					{
-						pcmd->UserCallback(cmd_list, pcmd);
+						pcmd->UserCallback( cmd_list, pcmd );
 					}
 					else
 					{
-						const D3D12_RECT r = { (LONG)pcmd->ClipRect.x, (LONG)pcmd->ClipRect.y, (LONG)pcmd->ClipRect.z, (LONG)pcmd->ClipRect.w };
-						context.SetDynamicDescriptors(1, 0, 1, &reinterpret_cast<Texture*>(pcmd->TextureId)->GetSRV());
-						context.SetScisor(r);
-						context.DrawIndexed(pcmd->ElemCount, idx_offset, vtx_offset);
+						const D3D12_RECT r = {(LONG)pcmd->ClipRect.x, (LONG)pcmd->ClipRect.y, (LONG)pcmd->ClipRect.z, (LONG)pcmd->ClipRect.w};
+						context.SetDynamicDescriptors( 1, 0, 1, &reinterpret_cast<Texture*>(pcmd->TextureId)->GetSRV() );
+						context.SetScisor( r );
+						context.DrawIndexed( pcmd->ElemCount, idx_offset, vtx_offset );
 					}
 					idx_offset += pcmd->ElemCount;
 				}
@@ -127,16 +127,16 @@ namespace
 		ImGuiIO& io = ImGui::GetIO();
 		unsigned char* pixels;
 		int width, height;
-		io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+		io.Fonts->GetTexDataAsRGBA32( &pixels, &width, &height );
 
-		_texture.Create(width, height, DXGI_FORMAT_R8G8B8A8_UNORM, pixels);
+		_texture.Create( width, height, DXGI_FORMAT_R8G8B8A8_UNORM, pixels );
 
 		// Store our identifier
 		io.Fonts->TexID = (void *)&_texture;
 	}
 }
 
-bool GuiRenderer::OnEvent(MSG* msg)
+bool GuiRenderer::OnEvent( MSG* msg )
 {
 	ImGuiIO& io = ImGui::GetIO();
 	switch (msg->message)
@@ -160,7 +160,7 @@ bool GuiRenderer::OnEvent(MSG* msg)
 		io.MouseDown[2] = false;
 		break;
 	case WM_MOUSEWHEEL:
-		io.MouseWheel += GET_WHEEL_DELTA_WPARAM(msg->wParam) > 0 ? +1.0f : -1.0f;
+		io.MouseWheel += GET_WHEEL_DELTA_WPARAM( msg->wParam ) > 0 ? +1.0f : -1.0f;
 		break;
 	case WM_MOUSEMOVE:
 		io.MousePos.x = (signed short)(msg->lParam);
@@ -177,7 +177,7 @@ bool GuiRenderer::OnEvent(MSG* msg)
 	case WM_CHAR:
 		// You can also use ToAscii()+GetKeyboardState() to retrieve characters.
 		if (msg->wParam > 0 && msg->wParam < 0x10000)
-			io.AddInputCharacter((unsigned short)(msg->wParam));
+			io.AddInputCharacter( (unsigned short)(msg->wParam) );
 		break;
 	}
 	return io.WantCaptureMouse;
@@ -186,16 +186,16 @@ bool GuiRenderer::OnEvent(MSG* msg)
 HRESULT GuiRenderer::CreateResource()
 {
 	HRESULT hr;
-	_rootSignature.Reset(2, 1);
-	_rootSignature.InitStaticSampler(0, Graphics::g_SamplerLinearWrapDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-	_rootSignature[0].InitAsConstantBuffer(0);
-	_rootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-	_rootSignature.Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+	_rootSignature.Reset( 2, 1 );
+	_rootSignature.InitStaticSampler( 0, Graphics::g_SamplerLinearWrapDesc, D3D12_SHADER_VISIBILITY_PIXEL );
+	_rootSignature[0].InitAsConstantBuffer( 0 );
+	_rootSignature[1].InitAsDescriptorRange( D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL );
+	_rootSignature.Finalize( D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS );
 
-	_graphicsPSO.SetRootSignature(_rootSignature);
+	_graphicsPSO.SetRootSignature( _rootSignature );
 	ComPtr<ID3DBlob> vertexShaderBlob;
 	ComPtr<ID3DBlob> pixelShaderBlob;
 
@@ -203,34 +203,34 @@ HRESULT GuiRenderer::CreateResource()
 	{
 		static const char* vertexShader =
 			"cbuffer vertexBuffer : register(b0) \
-            {\
-            float4x4 ProjectionMatrix; \
-            };\
-            struct VS_INPUT\
-            {\
-            float2 pos : POSITION;\
-            float4 col : COLOR0;\
-            float2 uv  : TEXCOORD0;\
-            };\
-            \
-            struct PS_INPUT\
-            {\
-            float4 pos : SV_POSITION;\
-            float4 col : COLOR0;\
-            float2 uv  : TEXCOORD0;\
-            };\
-            \
-            PS_INPUT main(VS_INPUT input)\
-            {\
-            PS_INPUT output;\
-            output.pos = mul( ProjectionMatrix, float4(input.pos.xy, 0.f, 1.f));\
-            output.col = input.col;\
-            output.uv  = input.uv;\
-            return output;\
-            }";
+			{\
+			float4x4 ProjectionMatrix; \
+			};\
+			struct VS_INPUT\
+			{\
+			float2 pos : POSITION;\
+			float4 col : COLOR0;\
+			float2 uv  : TEXCOORD0;\
+			};\
+			\
+			struct PS_INPUT\
+			{\
+			float4 pos : SV_POSITION;\
+			float4 col : COLOR0;\
+			float2 uv  : TEXCOORD0;\
+			};\
+			\
+			PS_INPUT main(VS_INPUT input)\
+			{\
+			PS_INPUT output;\
+			output.pos = mul( ProjectionMatrix, float4(input.pos.xy, 0.f, 1.f));\
+			output.col = input.col;\
+			output.uv  = input.uv;\
+			return output;\
+			}";
 
-		VRET(D3DCompile(vertexShader, strlen(vertexShader), NULL, NULL, NULL, "main", "vs_4_0", 0, 0, &vertexShaderBlob, NULL));
-		_graphicsPSO.SetVertexShader(vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize());
+		VRET( D3DCompile( vertexShader, strlen( vertexShader ), NULL, NULL, NULL, "main", "vs_4_0", 0, 0, &vertexShaderBlob, NULL ) );
+		_graphicsPSO.SetVertexShader( vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize() );
 
 		// Create the input layout
 		D3D12_INPUT_ELEMENT_DESC local_layout[] = {
@@ -239,37 +239,37 @@ HRESULT GuiRenderer::CreateResource()
 			{ "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, (size_t)(&((ImDrawVert*)0)->col), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
 
-		_graphicsPSO.SetInputLayout(_countof(local_layout), local_layout);
+		_graphicsPSO.SetInputLayout( _countof( local_layout ), local_layout );
 	}
 
 	// Create the pixel shader
 	{
 		static const char* pixelShader =
 			"struct PS_INPUT\
-            {\
-            float4 pos : SV_POSITION;\
-            float4 col : COLOR0;\
-            float2 uv  : TEXCOORD0;\
-            };\
-            sampler sampler0;\
-            Texture2D texture0;\
-            \
-            float4 main(PS_INPUT input) : SV_Target\
-            {\
-            float4 out_col = input.col * texture0.Sample(sampler0, input.uv); \
-            return out_col; \
-            }";
+			{\
+			float4 pos : SV_POSITION;\
+			float4 col : COLOR0;\
+			float2 uv  : TEXCOORD0;\
+			};\
+			sampler sampler0;\
+			Texture2D texture0;\
+			\
+			float4 main(PS_INPUT input) : SV_Target\
+			{\
+			float4 out_col = input.col * texture0.Sample(sampler0, input.uv); \
+			return out_col; \
+			}";
 
-		VRET(D3DCompile(pixelShader, strlen(pixelShader), NULL, NULL, NULL, "main", "ps_4_0", 0, 0, &pixelShaderBlob, NULL));
-		_graphicsPSO.SetPixelShader(pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize());
+		VRET( D3DCompile( pixelShader, strlen( pixelShader ), NULL, NULL, NULL, "main", "ps_4_0", 0, 0, &pixelShaderBlob, NULL ) );
+		_graphicsPSO.SetPixelShader( pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() );
 	}
 
 	// Create the blending setup
-	_graphicsPSO.SetBlendState(Graphics::g_BlendTraditional);
-	_graphicsPSO.SetRasterizerState(Graphics::g_RasterizerTwoSided);
-	_graphicsPSO.SetDepthStencilState(Graphics::g_DepthStateDisabled);
-	_graphicsPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-	_graphicsPSO.SetRenderTargetFormats(1, &Graphics::g_pDisplayPlanes[0].GetFormat(), DXGI_FORMAT_D32_FLOAT);
+	_graphicsPSO.SetBlendState( Graphics::g_BlendTraditional );
+	_graphicsPSO.SetRasterizerState( Graphics::g_RasterizerTwoSided );
+	_graphicsPSO.SetDepthStencilState( Graphics::g_DepthStateDisabled );
+	_graphicsPSO.SetPrimitiveTopologyType( D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE );
+	_graphicsPSO.SetRenderTargetFormats( 1, &Graphics::g_pDisplayPlanes[0].GetFormat(), DXGI_FORMAT_D32_FLOAT );
 	_graphicsPSO.Finalize();
 
 	CreateFontsTexture();
@@ -318,15 +318,15 @@ void GuiRenderer::NewFrame()
 	//RECT rect;
 	//GetClientRect(g_hWnd, &rect);
 	//io.DisplaySize = ImVec2((float)(rect.right - rect.left), (float)(rect.bottom - rect.top));
-	io.DisplaySize = ImVec2((float)(Core::g_config.swapChainDesc.Width), (float)(Core::g_config.swapChainDesc.Height));
+	io.DisplaySize = ImVec2( (float)(Core::g_config.swapChainDesc.Width), (float)(Core::g_config.swapChainDesc.Height) );
 
 	// Setup time step
 	io.DeltaTime = (float)Core::g_deltaTime;
 
 	// Read keyboard modifiers inputs
-	io.KeyCtrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-	io.KeyShift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-	io.KeyAlt = (GetKeyState(VK_MENU) & 0x8000) != 0;
+	io.KeyCtrl = (GetKeyState( VK_CONTROL ) & 0x8000) != 0;
+	io.KeyShift = (GetKeyState( VK_SHIFT ) & 0x8000) != 0;
+	io.KeyAlt = (GetKeyState( VK_MENU ) & 0x8000) != 0;
 	io.KeySuper = false;
 	// io.KeysDown : filled by WM_KEYDOWN/WM_KEYUP events
 	// io.MousePos : filled by WM_MOUSEMOVE events
@@ -334,18 +334,18 @@ void GuiRenderer::NewFrame()
 	// io.MouseWheel : filled by WM_MOUSEWHEEL events
 
 	// Hide OS mouse cursor if ImGui is drawing it
-	SetCursor(io.MouseDrawCursor ? NULL : LoadCursor(NULL, IDC_ARROW));
+	SetCursor( io.MouseDrawCursor ? NULL : LoadCursor( NULL, IDC_ARROW ) );
 
 	// Start the frame
 	ImGui::NewFrame();
 }
 
-void GuiRenderer::Render(GraphicsContext& gfxContext)
+void GuiRenderer::Render( GraphicsContext& gfxContext )
 {
 	static bool showEnginePenal = false;
-	if (ImGui::Begin("Engine Penal", &showEnginePenal))
+	if (ImGui::Begin( "Engine Penal", &showEnginePenal ))
 	{
-		if (ImGui::CollapsingHeader("Stats",(const char*)0,true,true))
+		if (ImGui::CollapsingHeader( "Stats", (const char*)0, true, true ))
 		{
 			HRESULT hr;
 			V( Graphics::g_adaptor->QueryVideoMemoryInfo( 0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &Core::g_stats.localVideoMemoryInfo ) );
@@ -355,7 +355,7 @@ void GuiRenderer::Render(GraphicsContext& gfxContext)
 			char buf[32];
 			sprintf( buf, "%4.2fMB/%4.fMB", memUsed, memBudget );
 			ImGui::Text( "GPU memory usage" );
-			ImGui::ProgressBar( usedMemPct,ImVec2(-1.f,0.f),buf );
+			ImGui::ProgressBar( usedMemPct, ImVec2( -1.f, 0.f ), buf );
 
 			ImGui::Columns( 3, "cmdAllocatorInfo" );
 			ImGui::Separator();
@@ -381,5 +381,5 @@ void GuiRenderer::Render(GraphicsContext& gfxContext)
 	ImGui::ShowTestWindow();
 	ImGui::End();
 	ImGui::Render();
-	ImGuiRender(ImGui::GetDrawData(),gfxContext);
+	ImGuiRender( ImGui::GetDrawData(), gfxContext );
 }

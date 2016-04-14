@@ -19,22 +19,22 @@ typedef uint32_t uint;
 #if __cplusplus || ( __hlsl && Vertex_Shader )
 CBUFFER_ALIGN STRUCT( cbuffer ) VertexShaderParams REGISTER( b0 )
 {
-    float2      Scale;			// Scale and offset for transforming coordinates
-    float2      Offset;
-    float2      InvTexDim;		// Normalizes texture coordinates
-    float       TextHeight;		// Height of text in destination pixels
-    float       TextScale;		// TextSize / FontHeight
-    float       DstBorder;		// Extra space around a glyph measured in screen space coordinates
-    uint        SrcBorder;		// Extra spacing around glyphs to avoid sampling neighboring glyphs
+	float2      Scale;			// Scale and offset for transforming coordinates
+	float2      Offset;
+	float2      InvTexDim;		// Normalizes texture coordinates
+	float       TextHeight;		// Height of text in destination pixels
+	float       TextScale;		// TextSize / FontHeight
+	float       DstBorder;		// Extra space around a glyph measured in screen space coordinates
+	uint        SrcBorder;		// Extra spacing around glyphs to avoid sampling neighboring glyphs
 #if __cplusplus
-    void * operator new( size_t i )
-    {
-        return _aligned_malloc( i, 16 );
-    };
-    void operator delete( void* p )
-    {
-        _aligned_free( p );
-    };
+	void * operator new(size_t i)
+	{
+		return _aligned_malloc( i, 16 );
+	};
+	void operator delete(void* p)
+	{
+		_aligned_free( p );
+	};
 #endif // __cplusplus
 };
 #endif // __cplusplus || (__hlsl && Vertex_Shader)
@@ -42,20 +42,20 @@ CBUFFER_ALIGN STRUCT( cbuffer ) VertexShaderParams REGISTER( b0 )
 #if __cplusplus || ( __hlsl && Pixel_Shader )
 CBUFFER_ALIGN STRUCT( cbuffer ) PixelShaderParams REGISTER( b0 )
 {
-    float4      Color;
-    float2      ShadowOffset;
-    float       ShadowHardness;
-    float       ShadowOpacity;
-    float       HeightRange;	// The range of the signed distance field.
+	float4      Color;
+	float2      ShadowOffset;
+	float       ShadowHardness;
+	float       ShadowOpacity;
+	float       HeightRange;	// The range of the signed distance field.
 #if __cplusplus
-    void * operator new( size_t i )
-    {
-        return _aligned_malloc( i, 16 );
-    };
-    void operator delete( void* p )
-    {
-        _aligned_free( p );
-    };
+	void * operator new(size_t i)
+	{
+		return _aligned_malloc( i, 16 );
+	};
+	void operator delete(void* p)
+	{
+		_aligned_free( p );
+	};
 #endif // __cplusplus
 };
 #endif // __cplusplus || ( __hlsl && Pixel_Shader )

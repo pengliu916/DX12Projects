@@ -10,8 +10,8 @@
 
 struct DynAlloc
 {
-	DynAlloc(GpuResource& BaseResource, size_t ThisOffset, size_t ThisSize)
-		: Buffer(BaseResource), Offset(ThisOffset), Size(ThisSize) {}
+	DynAlloc( GpuResource& BaseResource, size_t ThisOffset, size_t ThisSize )
+		: Buffer( BaseResource ), Offset( ThisOffset ), Size( ThisSize ) {}
 
 	GpuResource&				Buffer;
 	size_t						Offset;
@@ -23,11 +23,11 @@ struct DynAlloc
 class LinearAllocationPage : public GpuResource
 {
 public:
-	LinearAllocationPage(ID3D12Resource* pGfxResource, D3D12_RESOURCE_STATES Usage);
+	LinearAllocationPage( ID3D12Resource* pGfxResource, D3D12_RESOURCE_STATES Usage );
 	~LinearAllocationPage();
 
-	LinearAllocationPage& operator=(LinearAllocationPage const&) = delete;
-	LinearAllocationPage(LinearAllocationPage const&) = delete;
+	LinearAllocationPage& operator=( LinearAllocationPage const& ) = delete;
+	LinearAllocationPage( LinearAllocationPage const& ) = delete;
 
 	void*									m_CpuVirtualAddr;
 	D3D12_GPU_VIRTUAL_ADDRESS				m_GpuVirtualAddr;
@@ -52,15 +52,15 @@ class LinearAllocatorPageMngr
 	friend class LinearAllocator;
 
 public:
-	LinearAllocatorPageMngr(LinearAllocatorType);
+	LinearAllocatorPageMngr( LinearAllocatorType );
 	~LinearAllocatorPageMngr();
 
 	LinearAllocationPage* RequestPage();
-	void DiscardPages(uint64_t FenceID, const std::vector<LinearAllocationPage*>& Pages);
+	void DiscardPages( uint64_t FenceID, const std::vector<LinearAllocationPage*>& Pages );
 	void Destory();
 
 	//LinearAllocatorPageMngr( LinearAllocatorPageMngr const& ) = delete;
-	LinearAllocatorPageMngr& operator= (LinearAllocatorPageMngr const&) = delete;
+	LinearAllocatorPageMngr& operator= ( LinearAllocatorPageMngr const& ) = delete;
 
 private:
 	LinearAllocationPage* CreateNewPage();
@@ -75,12 +75,12 @@ private:
 class LinearAllocator
 {
 public:
-	LinearAllocator(LinearAllocatorType Type);
-	LinearAllocator(LinearAllocator const&) = delete;
-	LinearAllocator& operator= (LinearAllocator const&) = delete;
-	
-	DynAlloc Allocate(size_t SizeInByte, size_t Alignment = DEFAULT_ALIGN);
-	void CleanupUsedPages(uint64_t FenceID);
+	LinearAllocator( LinearAllocatorType Type );
+	LinearAllocator( LinearAllocator const& ) = delete;
+	LinearAllocator& operator= ( LinearAllocator const& ) = delete;
+
+	DynAlloc Allocate( size_t SizeInByte, size_t Alignment = DEFAULT_ALIGN );
+	void CleanupUsedPages( uint64_t FenceID );
 
 	static void DestroyAll();
 

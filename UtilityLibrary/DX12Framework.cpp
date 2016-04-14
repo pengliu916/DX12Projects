@@ -12,23 +12,23 @@
 namespace
 {
 	// temp variable for window resize
-	uint32_t            _width;
-	uint32_t            _height;
+	uint32_t			_width;
+	uint32_t			_height;
 
 	// In multi-thread scenario, current thread may read old version of the following boolean due to 
 	// unflushed cache etc. So to use flag in multi-thread cases, atomic bool is needed, and memory order semantic is crucial 
-	std::atomic<bool>   _resize;
-	bool                _terminated = false;
-	bool                _hasError = false;
+	std::atomic<bool>	_resize;
+	bool				_terminated = false;
+	bool				_hasError = false;
 
-	HRESULT GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
+	HRESULT GetAssetsPath( _Out_writes_( pathSize ) WCHAR* path, UINT pathSize )
 	{
 		if (path == nullptr)
 			return E_FAIL;
-		DWORD size = GetModuleFileName(nullptr, path, pathSize);
+		DWORD size = GetModuleFileName( nullptr, path, pathSize );
 		if (size == 0 || size == pathSize)
 			return E_FAIL;
-		WCHAR* lastSlash = wcsrchr(path, L'\\');
+		WCHAR* lastSlash = wcsrchr( path, L'\\' );
 		if (lastSlash)
 			*(lastSlash + 1) = NULL;
 		return S_OK;
@@ -42,39 +42,39 @@ namespace Core
 	double			g_elapsedTime = 0;
 	double			g_deltaTime = 0;
 
-	Settings        g_config = {};
+	Settings		g_config = {};
 	Stats			g_stats = {};
-	HWND            g_hwnd;
-	std::wstring    g_title = L"DX12Framework";
-	std::wstring    g_assetsPath;
-	wchar_t         g_strCustom[256] = L"";
+	HWND			g_hwnd;
+	std::wstring	g_title = L"DX12Framework";
+	std::wstring	g_assetsPath;
+	wchar_t			g_strCustom[256] = L"";
 
 	// Helper function for resolving the full path of assets.
-	std::wstring GetAssetFullPath(LPCWSTR assetName) { return g_assetsPath + assetName; }
+	std::wstring GetAssetFullPath( LPCWSTR assetName ) { return g_assetsPath + assetName; }
 
 	// Helper function for setting the window's title text.
-	void SetCustomWindowText(LPCWSTR text)
+	void SetCustomWindowText( LPCWSTR text )
 	{
 		std::wstring windowText = g_title + L" " + text;
-		SetWindowText(g_hwnd, windowText.c_str());
+		SetWindowText( g_hwnd, windowText.c_str() );
 	}
 
 	// Helper function for parsing any supplied command line args.
 	void IDX12Framework::ParseCommandLineArgs()
 	{
 		int argc;
-		LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+		LPWSTR *argv = CommandLineToArgvW( GetCommandLineW(), &argc );
 		for (int i = 1; i < argc; ++i)
 		{
-			if (_wcsnicmp(argv[i], L"-warp", wcslen(argv[i])) == 0 ||
-				_wcsnicmp(argv[i], L"/warp", wcslen(argv[i])) == 0)
+			if (_wcsnicmp( argv[i], L"-warp", wcslen( argv[i] ) ) == 0 ||
+				_wcsnicmp( argv[i], L"/warp", wcslen( argv[i] ) ) == 0)
 				g_config.warpDevice = true;
 		}
-		LocalFree(argv);
+		LocalFree( argv );
 	}
 
 	// Main message handler for the sample.
-	LRESULT CALLBACK WindowProc(HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK WindowProc( HWND hWnd, uint32_t message, WPARAM wParam, LPARAM lParam )
 	{
 		// Handle destroy/shutdown messages.
 		switch (message)
@@ -83,7 +83,7 @@ namespace Core
 		{
 			// Save a pointer to the DXSample passed in to CreateWindow.
 			LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
-			SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+			SetWindowLongPtr( hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams) );
 		}
 		return 0;
 
@@ -91,11 +91,11 @@ namespace Core
 			if (wParam != SIZE_MINIMIZED)
 			{
 				RECT clientRect = {};
-				GetClientRect(hWnd, &clientRect);
+				GetClientRect( hWnd, &clientRect );
 				_width = clientRect.right - clientRect.left;
 				_height = clientRect.bottom - clientRect.top;
 				if (g_config.swapChainDesc.Width != _width || g_config.swapChainDesc.Height != _height)
-					_resize.store(true, std::memory_order_release);
+					_resize.store( true, std::memory_order_release );
 			}
 			return 0;
 
@@ -107,12 +107,12 @@ namespace Core
 			switch (wParam) {
 				//case VK_SPACE:
 			case VK_ESCAPE:
-				SendMessage(hWnd, WM_CLOSE, 0, 0);
+				SendMessage( hWnd, WM_CLOSE, 0, 0 );
 				return 0;
 				// toggle vsync;
 			case 'V':
 				g_config.vsync = !g_config.vsync;
-				PRINTINFO("Vsync is %s", g_config.vsync ? "on" : "off");
+				PRINTINFO( "Vsync is %s", g_config.vsync ? "on" : "off" );
 				return 0;
 			} // Switch on key code
 			return 0;
@@ -126,30 +126,30 @@ namespace Core
 		}
 
 		case WM_DESTROY:
-			PostQuitMessage(0);
+			PostQuitMessage( 0 );
 			return 0;
 		}
 
 		// Handle any messages the switch statement didn't.
-		return DefWindowProc(hWnd, message, wParam, lParam);
+		return DefWindowProc( hWnd, message, wParam, lParam );
 	}
 
 
-	void FrameworkOnConfig(IDX12Framework& application)
+	void FrameworkOnConfig( IDX12Framework& application )
 	{
 		// Giving app a chance to modify the framework level resource settings
 		application.OnConfiguration();
 	}
 
-	void FrameworkInit(IDX12Framework& application)
+	void FrameworkInit( IDX12Framework& application )
 	{
 		MsgPrinting::Init();
 
-		PRINTINFO(L"%s start", g_title.c_str());
+		PRINTINFO( L"%s start", g_title.c_str() );
 
 		HRESULT hr;
 		WCHAR assetsPath[512];
-		V(GetAssetsPath(assetsPath, _countof(assetsPath)));
+		V( GetAssetsPath( assetsPath, _countof( assetsPath ) ) );
 		g_assetsPath = assetsPath;
 
 		Graphics::Init();
@@ -158,38 +158,38 @@ namespace Core
 		application.OnInit();
 	}
 
-	HRESULT FrameworkCreateResource(IDX12Framework& application)
+	HRESULT FrameworkCreateResource( IDX12Framework& application )
 	{
 		HRESULT hr;
 		// Initialize framework level graphics resource
-		VRET(Graphics::CreateResource());
-		VRET(GuiRenderer::CreateResource());
+		VRET( Graphics::CreateResource() );
+		VRET( GuiRenderer::CreateResource() );
 		// Initialize the sample. OnInit is defined in each child-implementation of DXSample.
-		VRET(application.OnCreateResource());
+		VRET( application.OnCreateResource() );
 
 		return hr;
 	}
 
-	void FrameworkUpdate(IDX12Framework& application)
+	void FrameworkUpdate( IDX12Framework& application )
 	{
 		GuiRenderer::NewFrame();
 		application.OnUpdate();
 	}
 
-	void FrameworkRender(IDX12Framework& application)
+	void FrameworkRender( IDX12Framework& application )
 	{
-		CommandContext& EngineContext = CommandContext::Begin(L"EngineContext");
-		application.OnRender(EngineContext);
-		GuiRenderer::Render(EngineContext.GetGraphicsContext());
+		CommandContext& EngineContext = CommandContext::Begin( L"EngineContext" );
+		application.OnRender( EngineContext );
+		GuiRenderer::Render( EngineContext.GetGraphicsContext() );
 
 #ifndef RELEASE
-		GPU_Profiler::ProcessAndReadback(EngineContext);
-		GPU_Profiler::DrawStats(EngineContext.GetGraphicsContext());
+		GPU_Profiler::ProcessAndReadback( EngineContext );
+		GPU_Profiler::DrawStats( EngineContext.GetGraphicsContext() );
 #endif
-		Graphics::Present(EngineContext);
+		Graphics::Present( EngineContext );
 	}
 
-	void FrameworkDestory(IDX12Framework& application)
+	void FrameworkDestory( IDX12Framework& application )
 	{
 		application.OnDestroy();
 		GuiRenderer::Shutdown();
@@ -197,14 +197,14 @@ namespace Core
 		MsgPrinting::Destory();
 	}
 
-	void FrameworkHandleEvent(IDX12Framework& application, MSG* msg)
+	void FrameworkHandleEvent( IDX12Framework& application, MSG* msg )
 	{
-		bool GuiIsUsingInput = GuiRenderer::OnEvent(msg);
-		if(!GuiIsUsingInput)
-			application.OnEvent(msg);
+		bool GuiIsUsingInput = GuiRenderer::OnEvent( msg );
+		if (!GuiIsUsingInput)
+			application.OnEvent( msg );
 	}
 
-	void FrameworkResize(IDX12Framework& application)
+	void FrameworkResize( IDX12Framework& application )
 	{
 		g_config.swapChainDesc.Width = _width;
 		g_config.swapChainDesc.Height = _height;
@@ -212,15 +212,15 @@ namespace Core
 		Graphics::Resize();
 
 		application.OnSizeChanged();
-		PRINTINFO("Window resize to %d x %d", g_config.swapChainDesc.Width, g_config.swapChainDesc.Height);
+		PRINTINFO( "Window resize to %d x %d", g_config.swapChainDesc.Width, g_config.swapChainDesc.Height );
 	}
 
-	void RenderLoop(IDX12Framework& application)
+	void RenderLoop( IDX12Framework& application )
 	{
-		SetThreadName("Render Thread");
+		SetThreadName( "Render Thread" );
 
-		QueryPerformanceFrequency((LARGE_INTEGER*)&g_tickesPerSecond);
-		QueryPerformanceCounter((LARGE_INTEGER*)&g_lastFrameTickCount);
+		QueryPerformanceFrequency( (LARGE_INTEGER*)&g_tickesPerSecond );
+		QueryPerformanceCounter( (LARGE_INTEGER*)&g_lastFrameTickCount );
 
 		// main loop
 		double frameTime = 0.0;
@@ -229,7 +229,7 @@ namespace Core
 		{
 			// Get time delta
 			uint64_t count;
-			QueryPerformanceCounter((LARGE_INTEGER*)&count);
+			QueryPerformanceCounter( (LARGE_INTEGER*)&count );
 			g_deltaTime = (double)(count - g_lastFrameTickCount) / g_tickesPerSecond;
 			g_elapsedTime += g_deltaTime;
 			g_lastFrameTickCount = count;
@@ -241,37 +241,37 @@ namespace Core
 			// Update GUI
 			{
 				wchar_t buffer[512];
-				swprintf(buffer, 512, L"-%4.1f ms  %.0f fps %s", 1000.f * frameTime, 1.0f / frameTime, g_strCustom);
-				SetCustomWindowText(buffer);
+				swprintf( buffer, 512, L"-%4.1f ms  %.0f fps %s", 1000.f * frameTime, 1.0f / frameTime, g_strCustom );
+				SetCustomWindowText( buffer );
 			}
 
-			if (_resize.load(std::memory_order_acquire))
+			if (_resize.load( std::memory_order_acquire ))
 			{
-				_resize.store(false, std::memory_order_relaxed);
-				FrameworkResize(application);
+				_resize.store( false, std::memory_order_relaxed );
+				FrameworkResize( application );
 			}
-			FrameworkUpdate(application);
-			FrameworkRender(application);
+			FrameworkUpdate( application );
+			FrameworkRender( application );
 		}
-		FrameworkDestory(application);
+		FrameworkDestory( application );
 	}
 
-	int Run(IDX12Framework& application, HINSTANCE hInstance, int nCmdShow)
+	int Run( IDX12Framework& application, HINSTANCE hInstance, int nCmdShow )
 	{
-		SetThreadName("UI Thread");
+		SetThreadName( "UI Thread" );
 
-		FrameworkInit(application);
-		FrameworkOnConfig(application);
+		FrameworkInit( application );
+		FrameworkOnConfig( application );
 
 		// Initialize the window class.
-		WNDCLASSEX windowClass = { 0 };
-		windowClass.cbSize = sizeof(WNDCLASSEX);
+		WNDCLASSEX windowClass = {0};
+		windowClass.cbSize = sizeof( WNDCLASSEX );
 		windowClass.style = CS_HREDRAW | CS_VREDRAW;
 		windowClass.lpfnWndProc = WindowProc;
 		windowClass.hInstance = hInstance;
-		windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+		windowClass.hCursor = LoadCursor( NULL, IDC_ARROW );
 		windowClass.lpszClassName = L"WindowClass1";
-		RegisterClassEx(&windowClass);
+		RegisterClassEx( &windowClass );
 
 		LONG top = 300;
 		LONG left = 300;
@@ -279,50 +279,50 @@ namespace Core
 #if ATTACH_CONSOLE
 		RECT rect;
 		HWND con_hwnd = GetConsoleWindow();
-		if (GetWindowRect(con_hwnd, &rect))
+		if (GetWindowRect( con_hwnd, &rect ))
 		{
-			top = rect.top + GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CYCAPTION) +
-				GetSystemMetrics(SM_CXPADDEDBORDER);
+			top = rect.top + GetSystemMetrics( SM_CYFRAME ) + GetSystemMetrics( SM_CYCAPTION ) +
+				GetSystemMetrics( SM_CXPADDEDBORDER );
 			left = rect.right;
 		}
 #endif
 
-		RECT windowRect = { left, top, left + static_cast<LONG>(g_config.swapChainDesc.Width),
-			top + static_cast<LONG>(g_config.swapChainDesc.Height) };
-		AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
+		RECT windowRect = {left, top, left + static_cast<LONG>(g_config.swapChainDesc.Width),
+			top + static_cast<LONG>(g_config.swapChainDesc.Height)};
+		AdjustWindowRect( &windowRect, WS_OVERLAPPEDWINDOW, FALSE );
 
 		// Create the window and store a handle to it.
-		g_hwnd = CreateWindowEx(NULL, L"WindowClass1", g_title.c_str(), WS_OVERLAPPEDWINDOW,
+		g_hwnd = CreateWindowEx( NULL, L"WindowClass1", g_title.c_str(), WS_OVERLAPPEDWINDOW,
 			windowRect.left, windowRect.top, windowRect.right - windowRect.left,
-			windowRect.bottom - windowRect.top, NULL, NULL, hInstance, nullptr);
+			windowRect.bottom - windowRect.top, NULL, NULL, hInstance, nullptr );
 
 		// SwapChain need hwnd, so have to place it after window creation
-		FrameworkCreateResource(application);
+		FrameworkCreateResource( application );
 
 		g_title += (g_config.warpDevice ? L" (WARP)" : L"");
 
 		// Start the master render thread
-		std::thread renderThread(RenderLoop, std::ref(application));
-		thread_guard g(renderThread);
+		std::thread renderThread( RenderLoop, std::ref( application ) );
+		thread_guard g( renderThread );
 
 		// Bring up the window
-		ShowWindow(g_hwnd, nCmdShow);
+		ShowWindow( g_hwnd, nCmdShow );
 
 		// Enable mouse interaction
-		EnableMouseInPointer(TRUE);
+		EnableMouseInPointer( TRUE );
 
 		// Main sample loop.
-		MSG msg = { 0 };
+		MSG msg = {0};
 		while (msg.message != WM_QUIT)
 		{
 			// Process any messages in the queue.
-			if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+			if (PeekMessage( &msg, NULL, 0, 0, PM_REMOVE ))
 			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
+				TranslateMessage( &msg );
+				DispatchMessage( &msg );
 
 				// Pass events into our sample.
-				FrameworkHandleEvent(application, &msg);
+				FrameworkHandleEvent( application, &msg );
 			}
 		}
 		_terminated = true;

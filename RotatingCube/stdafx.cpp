@@ -1,2 +1,2 @@
 #include "stdafx.h"
-#pragma message("===========Compiling Precompiled Headers===========\n")
+#pragma message("===========Compiling RotatingCube Precompiled Header===========\n")

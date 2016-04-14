@@ -8,8 +8,8 @@ class RootParameter
 	friend class RootSignature;
 public:
 
-	RootParameter(){m_RootParam.ParameterType = (D3D12_ROOT_PARAMETER_TYPE)0xFFFFFFFF;}
-	~RootParameter(){Clear();}
+	RootParameter() { m_RootParam.ParameterType = (D3D12_ROOT_PARAMETER_TYPE)0xFFFFFFFF; }
+	~RootParameter() { Clear(); }
 	void Clear()
 	{
 		if (m_RootParam.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
@@ -18,7 +18,7 @@ public:
 		m_RootParam.ParameterType = (D3D12_ROOT_PARAMETER_TYPE)0xFFFFFFFF;
 	}
 
-	void InitAsConstants(UINT Register, UINT NumDwords, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL)
+	void InitAsConstants( UINT Register, UINT NumDwords, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
 	{
 		m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 		m_RootParam.ShaderVisibility = Visibility;
@@ -27,7 +27,7 @@ public:
 		m_RootParam.Constants.RegisterSpace = 0;
 	}
 
-	void InitAsConstantBuffer(UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL)
+	void InitAsConstantBuffer( UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
 	{
 		m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 		m_RootParam.ShaderVisibility = Visibility;
@@ -35,7 +35,7 @@ public:
 		m_RootParam.Descriptor.RegisterSpace = 0;
 	}
 
-	void InitAsBufferSRV(UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL)
+	void InitAsBufferSRV( UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
 	{
 		m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 		m_RootParam.ShaderVisibility = Visibility;
@@ -43,7 +43,7 @@ public:
 		m_RootParam.Descriptor.RegisterSpace = 0;
 	}
 
-	void InitAsBufferUAV(UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL)
+	void InitAsBufferUAV( UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
 	{
 		m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
 		m_RootParam.ShaderVisibility = Visibility;
@@ -51,13 +51,13 @@ public:
 		m_RootParam.Descriptor.RegisterSpace = 0;
 	}
 
-	void InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE Type, UINT Register, UINT Count, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL)
+	void InitAsDescriptorRange( D3D12_DESCRIPTOR_RANGE_TYPE Type, UINT Register, UINT Count, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
 	{
-		InitAsDescriptorTable(1, Visibility);
-		SetTableRange(0, Type, Register, Count);
+		InitAsDescriptorTable( 1, Visibility );
+		SetTableRange( 0, Type, Register, Count );
 	}
 
-	void InitAsDescriptorTable(UINT RangeCount, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL)
+	void InitAsDescriptorTable( UINT RangeCount, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
 	{
 		m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		m_RootParam.ShaderVisibility = Visibility;
@@ -65,7 +65,7 @@ public:
 		m_RootParam.DescriptorTable.pDescriptorRanges = new D3D12_DESCRIPTOR_RANGE[RangeCount];
 	}
 
-	void SetTableRange(UINT RangeIndex, D3D12_DESCRIPTOR_RANGE_TYPE Type, UINT Register, UINT Count, UINT Space = 0)
+	void SetTableRange( UINT RangeIndex, D3D12_DESCRIPTOR_RANGE_TYPE Type, UINT Register, UINT Count, UINT Space = 0 )
 	{
 		D3D12_DESCRIPTOR_RANGE* range = const_cast<D3D12_DESCRIPTOR_RANGE*>(m_RootParam.DescriptorTable.pDescriptorRanges + RangeIndex);
 		range->RangeType = Type;
@@ -75,7 +75,7 @@ public:
 		range->OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	}
 
-	const D3D12_ROOT_PARAMETER& operator() (void) const { return m_RootParam; }
+	const D3D12_ROOT_PARAMETER& operator() ( void ) const { return m_RootParam; }
 
 protected:
 	D3D12_ROOT_PARAMETER m_RootParam;
@@ -88,18 +88,18 @@ class RootSignature
 {
 	friend class DynamicDescriptorHeap;
 public:
-	RootSignature(UINT NumRootParams = 0, UINT NumStaticSamplers = 0);
+	RootSignature( UINT NumRootParams = 0, UINT NumStaticSamplers = 0 );
 	~RootSignature() {};
 
 	static void Initialize();
 	static void DestroyAll();
 
-	void Reset(UINT NumRootParams, UINT NumStaticSamplers = 0);
-	RootParameter& operator[] (size_t EntryIndex);
-	const RootParameter& operator[] (size_t EntryIndex) const;
-	void InitStaticSampler(UINT Register, const D3D12_SAMPLER_DESC& NonStaticSamplerDesc,
-		D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL);
-	void Finalize(D3D12_ROOT_SIGNATURE_FLAGS Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE);
+	void Reset( UINT NumRootParams, UINT NumStaticSamplers = 0 );
+	RootParameter& operator[] ( size_t EntryIndex );
+	const RootParameter& operator[] ( size_t EntryIndex ) const;
+	void InitStaticSampler( UINT Register, const D3D12_SAMPLER_DESC& NonStaticSamplerDesc,
+		D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL );
+	void Finalize( D3D12_ROOT_SIGNATURE_FLAGS Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE );
 	ID3D12RootSignature* GetSignature() const { return m_Signature; }
 
 protected:
