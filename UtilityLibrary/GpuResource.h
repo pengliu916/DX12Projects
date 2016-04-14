@@ -26,6 +26,14 @@ public:
 		m_GpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_NULL;
 	}
 
+	GpuResource( GpuResource&& one )
+	{
+		m_pResource = one.m_pResource.Detach();
+		m_UsageState = one.m_UsageState;
+		m_TransitioningState = one.m_TransitioningState;
+		m_GpuVirtualAddress = one.m_GpuVirtualAddress;
+	}
+
 	void Destroy() { m_pResource = nullptr; }
 
 	ID3D12Resource* operator->() { return m_pResource.Get(); }

@@ -18,6 +18,8 @@ build/
 [Bb]in/
 [Oo]bj/
 
+# Visual Studio IntelliSense database
+*.vc.db
 # Enable "build/" folder in the NuGet Packages folder since NuGet packages use it for MSBuild targets
 !packages/*/build/
 

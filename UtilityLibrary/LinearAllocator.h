@@ -13,6 +13,12 @@ struct DynAlloc
 	DynAlloc( GpuResource& BaseResource, size_t ThisOffset, size_t ThisSize )
 		: Buffer( BaseResource ), Offset( ThisOffset ), Size( ThisSize ) {}
 
+	DynAlloc( DynAlloc&& one )
+		:Buffer(std::move(one.Buffer)), Offset(one.Offset),Size(one.Size)
+		,DataPtr(one.DataPtr),GpuAddress(one.GpuAddress){}
+
+	DynAlloc& operator=( DynAlloc&& one ) = default;
+
 	GpuResource&				Buffer;
 	size_t						Offset;
 	size_t						Size;
