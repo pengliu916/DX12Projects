@@ -51,6 +51,7 @@ private:
 	RenderCB			m_RenderCB;
 
 	// Buffers
+	Texture				m_ColorMapTex;
 	DepthBuffer			m_DepthBuffer;
 	StructuredBuffer	m_BoidsPosVelBuffer[2];
 	DynAlloc*			m_pConstantBuffer;

@@ -13,4 +13,7 @@
     <CustomBuild Include="BoidsSimulation_shader.hlsl" />
     <CustomBuild Include="BoidsSimulation_SharedHeader.inl" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="colorMap.dds" />
+  </ItemGroup>
 </Project>

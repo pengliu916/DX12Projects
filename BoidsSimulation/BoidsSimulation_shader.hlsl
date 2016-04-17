@@ -2,8 +2,8 @@
 
 StructuredBuffer<FishData> oldVP : register(t0);
 RWStructuredBuffer<FishData> newPosVel : register(u0);
-Texture2D txFish : register(t1);
-Texture2D txColor : register(t2);
+Texture2D txColor : register(t1);
+Texture2D txFish : register(t2);
 SamplerState samGeneral : register(s0);
 
 #if COMPUTE_SHADER 
@@ -354,6 +354,8 @@ void gsmain( triangle GS_Input input[3], inout TriangleStream<PS_Input> SpriteSt
 // Pixel Shader
 //--------------------------------------------------------------------------------------
 float4 getColor( Texture2D tex, float2 coord ) {
+	//return tex.Load( int3(coord*float2(260, 640),0) );
+	//return tex.Sample( samGeneral, float2(0.5f,0.5f) );
 	return tex.Sample( samGeneral, coord );
 }
 
@@ -361,7 +363,7 @@ float4 psmain( PS_Input In ) : SV_Target
 {
 	//return float4(1,0,0,0);
 	//float4 col = txColor.Sample(samGeneral, float2(0.48,In.Vidx));
-	float4 col = float4(0,1,0,0);// getColor( txColor, float2(0.48,In.Vidx) );
+	float4 col = getColor( txColor, float2(0.48,In.Vidx) );
 	return  col*In.Illu;
 }
 #endif

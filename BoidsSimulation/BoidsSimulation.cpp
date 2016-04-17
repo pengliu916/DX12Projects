@@ -104,13 +104,12 @@ HRESULT BoidsSimulation::LoadAssets()
 {
 	HRESULT	hr;
 	// Create the root signature for both rendering and simulation.
-	m_RootSignature.Reset( 6, 1 );
+	m_RootSignature.Reset( 5, 1 );
 	m_RootSignature[0].InitAsConstantBuffer( 0 );
 	m_RootSignature[1].InitAsConstantBuffer( 1 );
 	m_RootSignature[2].InitAsBufferSRV( 0 );
 	m_RootSignature[3].InitAsBufferUAV( 0 );
-	m_RootSignature[4].InitAsBufferSRV( 1 );
-	m_RootSignature[5].InitAsBufferSRV( 2 );
+	m_RootSignature[4].InitAsDescriptorRange( D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2 );
 	m_RootSignature.InitStaticSampler( 0, Graphics::g_SamplerLinearWrapDesc );
 	m_RootSignature.Finalize( D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
@@ -178,6 +177,9 @@ HRESULT BoidsSimulation::LoadAssets()
 	// Create constant buffer
 	m_pConstantBuffer = new DynAlloc( std::move( m_Allocator.Allocate( sizeof( SimulationCB ) ) ) );
 	memcpy( m_pConstantBuffer->DataPtr, &m_SimulationCB, sizeof( SimulationCB ) );
+
+	// Load color map texture from file
+	ASSERT(m_ColorMapTex.CreateFromFIle( L"colorMap.dds", true ));
 
 	ResetCameraView();
 	return S_OK;
@@ -300,6 +302,7 @@ void BoidsSimulation::OnRender( CommandContext& EngineContext )
 		gfxContext.SetConstantBuffer( 1, m_pConstantBuffer->GpuAddress );
 		gfxContext.SetDynamicConstantBufferView( 0, sizeof( RenderCB ), (void*)(&m_RenderCB) );
 		gfxContext.SetBufferSRV( 2, m_BoidsPosVelBuffer[m_OnStageBufIdx] );
+		gfxContext.SetDynamicDescriptors( 4, 0, 1, &m_ColorMapTex.GetSRV() );
 		gfxContext.SetRenderTargets( 1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], &m_DepthBuffer );
 		gfxContext.SetViewport( Graphics::g_DisplayPlaneViewPort );
 		gfxContext.SetScisor( Graphics::g_DisplayPlaneScissorRect );
