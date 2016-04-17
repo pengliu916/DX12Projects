@@ -51,6 +51,7 @@
       <Filter>ImGUI</Filter>
     </ClCompile>
     <ClCompile Include="GuiRenderer.cpp" />
+    <ClCompile Include="DDSTextureLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utility.h" />
@@ -115,6 +116,9 @@
       <Filter>ImGUI</Filter>
     </ClInclude>
     <ClInclude Include="GuiRenderer.h" />
+    <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="dds.h" />
+    <ClInclude Include="DDSTextureLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">

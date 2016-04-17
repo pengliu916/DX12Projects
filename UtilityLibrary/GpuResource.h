@@ -240,6 +240,7 @@ public:
 	void Create( size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData );
 	/*void CreateTGAFromMemory(const void* memBuffer, size_t fileSize, bool sRGB);
 	bool CreateDDSFromMemory(const void* memBuffer, size_t fileSize, bool sRGB);*/
+	bool CreateFromFIle( const wchar_t* FileName, bool sRGB );
 	void Destroy();
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV() const;
 	bool operator!();
