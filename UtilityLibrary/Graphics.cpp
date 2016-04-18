@@ -7,9 +7,13 @@
 #include "RootSignature.h"
 #include "PipelineState.h"
 #include "SamplerMngr.h"
+#include "CommandSignature.h"
 #include "GpuResource.h"
+#include "GuiRenderer.h"
 #include "Graphics.h"
+#include "FXAA.h"
 #include "GPU_Profiler.h"
+#include "imgui.h"
 #include "TextRenderer.h"
 #include "DX12Framework.h"
 
@@ -55,6 +59,8 @@ namespace
 
 namespace Graphics
 {
+	Stats						g_stats;
+
 	// Framework level gfx resource
 	ComPtr<IDXGIFactory4>		g_factory;
 	ComPtr<IDXGIAdapter3>		g_adaptor;
@@ -93,12 +99,22 @@ namespace Graphics
 	D3D12_DEPTH_STENCIL_DESC	g_DepthStateReadOnlyReversed;
 	D3D12_DEPTH_STENCIL_DESC	g_DepthStateTestEqual;
 
+	ColorBuffer					g_SceneColorBuffer;
+	DepthBuffer					g_SceneDepthBuffer;
+
+	CommandSignature			g_DispatchIndirectCommandSignature(1);
+	CommandSignature			g_DrawIndirectCommandSignature(1);
+
+	RootSignature				s_PresentRS;
+	GraphicsPSO					s_BufferCopyPSO;
+
 	void Init()
 	{
 		// Initial system setting with default
 		Core::g_config.enableFullScreen = false;
 		Core::g_config.warpDevice = false;
 		Core::g_config.vsync = false;
+		Core::g_config.FXAA = true;
 		Core::g_config.swapChainDesc = {};
 		Core::g_config.swapChainDesc.Width = 1280;
 		Core::g_config.swapChainDesc.Height = 800;
@@ -116,6 +132,7 @@ namespace Graphics
 		RootSignature::Initialize();
 		PSO::Initialize();
 		DynamicDescriptorHeap::Initialize();
+		GuiRenderer::Initialize();
 #ifndef RELEASE
 		GPU_Profiler::Initialize();
 #endif
@@ -124,6 +141,10 @@ namespace Graphics
 	void Shutdown()
 	{
 		g_cmdListMngr.IdleGPU();
+
+		GuiRenderer::Shutdown();
+		FXAA::Shutdown();
+
 		GPU_Profiler::ShutDown();
 		TextRenderer::ShutDown();
 		CommandContext::DestroyAllContexts();
@@ -134,6 +155,8 @@ namespace Graphics
 
 		LinearAllocator::DestroyAll();
 
+		g_SceneColorBuffer.Destroy();
+		g_SceneDepthBuffer.Destroy();
 		for (uint8_t i = 0; i < Core::g_config.swapChainDesc.BufferCount; ++i)
 			g_pDisplayPlanes[i].Destroy();
 
@@ -263,16 +286,24 @@ namespace Graphics
 			g_pDisplayPlanes[i].CreateFromSwapChain( L"SwapChain Buffer", DisplayPlane.Detach() );
 		}
 		g_CurrentDPIdx = g_swapChain->GetCurrentBackBufferIndex();
+
+		uint32_t Width = Core::g_config.swapChainDesc.Width;
+		uint32_t Height= Core::g_config.swapChainDesc.Height;
+
 		// Create initial viewport and scissor rect
-		g_DisplayPlaneViewPort.Width = static_cast<float>(Core::g_config.swapChainDesc.Width);
-		g_DisplayPlaneViewPort.Height = static_cast<float>(Core::g_config.swapChainDesc.Height);
+		g_DisplayPlaneViewPort.Width = static_cast<float>(Width);
+		g_DisplayPlaneViewPort.Height = static_cast<float>(Height);
 		g_DisplayPlaneViewPort.MaxDepth = 1.0f;
 
-		g_DisplayPlaneScissorRect.right = static_cast<LONG>(Core::g_config.swapChainDesc.Width);
-		g_DisplayPlaneScissorRect.bottom = static_cast<LONG>(Core::g_config.swapChainDesc.Height);
+		g_DisplayPlaneScissorRect.right = static_cast<LONG>(Width);
+		g_DisplayPlaneScissorRect.bottom = static_cast<LONG>(Height);
 
 		// Enable or disable full screen
 		if (!Core::g_config.enableFullScreen) VRET( g_factory->MakeWindowAssociation( Core::g_hwnd, DXGI_MWA_NO_ALT_ENTER ) );
+
+		// Create the main scene related buffers
+		g_SceneColorBuffer.Create( L"Main Color Buffer", Width, Height, 1, DXGI_FORMAT_R11G11B10_FLOAT );
+		g_SceneDepthBuffer.Create( L"Scene Depth Buffer", Width, Height, DXGI_FORMAT_D32_FLOAT );
 
 		// Create engine level predefined resource
 		// Sampler states
@@ -357,11 +388,49 @@ namespace Graphics
 		g_DepthStateTestEqual = g_DepthStateReadOnly;
 		g_DepthStateTestEqual.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
 
+		g_DispatchIndirectCommandSignature[0].Dispatch();
+		g_DispatchIndirectCommandSignature.Finalize();
+
+		g_DrawIndirectCommandSignature[0].Draw();
+		g_DrawIndirectCommandSignature.Finalize();
+
+		s_PresentRS.Reset( 1 );
+		s_PresentRS[0].InitAsDescriptorRange( D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1 );
+		s_PresentRS.Finalize();
+
+		ComPtr<ID3DBlob> QuadVS;
+		ComPtr<ID3DBlob> CopyPS;
+		uint32_t compileFlags = D3DCOMPILE_OPTIMIZATION_LEVEL3; 
+		D3D_SHADER_MACRO macro[] =
+		{
+			{"QuadVS"					,	"1"}, // 0
+			{"CopyPS"					,	"0"}, // 1
+			{nullptr					,	nullptr}
+		};
+		V( Graphics::CompileShaderFromFile( Core::GetAssetFullPath( _T( "Graphics.hlsl" ) ).c_str(), macro, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_1", compileFlags, 0, &QuadVS ) );
+		macro[0].Definition = "0";
+		macro[1].Definition = "1";
+		V( Graphics::CompileShaderFromFile( Core::GetAssetFullPath( _T( "Graphics.hlsl" ) ).c_str(), macro, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain", "ps_5_1", compileFlags, 0, &CopyPS ) );
+
+		s_BufferCopyPSO.SetRootSignature( s_PresentRS );
+		s_BufferCopyPSO.SetRasterizerState( g_RasterizerTwoSided );
+		s_BufferCopyPSO.SetBlendState( g_BlendDisable );
+		s_BufferCopyPSO.SetDepthStencilState( g_DepthStateDisabled );
+		s_BufferCopyPSO.SetSampleMask( 0xFFFFFFFF );
+		s_BufferCopyPSO.SetInputLayout( 0, nullptr );
+		s_BufferCopyPSO.SetPrimitiveTopologyType( D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE );
+		s_BufferCopyPSO.SetVertexShader( QuadVS->GetBufferPointer(), QuadVS->GetBufferSize() );
+		s_BufferCopyPSO.SetPixelShader( CopyPS->GetBufferPointer(), CopyPS->GetBufferSize() );
+		s_BufferCopyPSO.SetRenderTargetFormats(1, &Core::g_config.swapChainDesc.Format, DXGI_FORMAT_UNKNOWN);
+		s_BufferCopyPSO.Finalize();
+
 #ifndef RELEASE
 		GPU_Profiler::CreateResource();
 #endif
 		// Create graphics resources for text renderer
-		TextRenderer::Initialize();
+		TextRenderer::CreateResource();
+		GuiRenderer::CreateResource();
+		FXAA::CreateResource();
 
 		return S_OK;
 	}
@@ -391,13 +460,22 @@ namespace Graphics
 	void Resize()
 	{
 		HRESULT hr;
-		g_DisplayPlaneViewPort.Width = static_cast<float>(Core::g_config.swapChainDesc.Width);
-		g_DisplayPlaneViewPort.Height = static_cast<float>(Core::g_config.swapChainDesc.Height);
+		uint32_t Width = Core::g_config.swapChainDesc.Width;
+		uint32_t Height = Core::g_config.swapChainDesc.Height;
 
-		g_DisplayPlaneScissorRect.right = static_cast<LONG>(Core::g_config.swapChainDesc.Width);
-		g_DisplayPlaneScissorRect.bottom = static_cast<LONG>(Core::g_config.swapChainDesc.Height);
+		g_DisplayPlaneViewPort.Width = static_cast<float>(Width);
+		g_DisplayPlaneViewPort.Height = static_cast<float>(Height);
+
+		g_DisplayPlaneScissorRect.right = static_cast<LONG>(Width);
+		g_DisplayPlaneScissorRect.bottom = static_cast<LONG>(Height);
 
 		g_cmdListMngr.IdleGPU();
+		
+		g_SceneColorBuffer.Destroy();
+		g_SceneDepthBuffer.Destroy();
+
+		g_SceneColorBuffer.Create( L"Main Color Buffer", Width, Height, 1, DXGI_FORMAT_R11G11B10_FLOAT );
+		g_SceneDepthBuffer.Create( L"Scene Depth Buffer", Width, Height, DXGI_FORMAT_D32_FLOAT );
 
 		for (uint8_t i = 0; i < Core::g_config.swapChainDesc.BufferCount; i++)
 			g_pDisplayPlanes[i].Destroy();
@@ -416,11 +494,36 @@ namespace Graphics
 		}
 
 		g_CurrentDPIdx = g_swapChain->GetCurrentBackBufferIndex();
+
+		FXAA::Resize();
 	}
 
 	void Present( CommandContext& EngineContext )
 	{
 		HRESULT hr;
+		GraphicsContext& Context = EngineContext.GetGraphicsContext();
+		{
+			GPU_PROFILE( Context, L"Copy To BackBuffer" );
+			Context.TransitionResource( g_SceneColorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE );
+			Context.SetRootSignature( s_PresentRS );
+			Context.SetPipelineState( s_BufferCopyPSO );
+			Context.SetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+			Context.SetDynamicDescriptors( 0, 0, 1, &g_SceneColorBuffer.GetSRV() );
+			Context.SetRenderTargets( 1, &g_pDisplayPlanes[g_CurrentDPIdx] );
+			Context.SetViewport( g_DisplayPlaneViewPort );
+			Context.SetScisor( g_DisplayPlaneScissorRect );
+			Context.Draw( 3 );
+		}
+
+		GuiRenderer::Render( Context );
+
+#ifndef RELEASE
+		GPU_Profiler::ProcessAndReadback( EngineContext );
+		GPU_Profiler::DrawStats( Context );
+#endif
+
+		Context.TransitionResource( g_pDisplayPlanes[g_CurrentDPIdx], D3D12_RESOURCE_STATE_PRESENT );
+		Context.Finish();
 
 		DXGI_PRESENT_PARAMETERS param;
 		param.DirtyRectsCount = 0;
@@ -428,10 +531,51 @@ namespace Graphics
 		param.pScrollRect = NULL;
 		param.pScrollOffset = NULL;
 
-		EngineContext.TransitionResource( Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], D3D12_RESOURCE_STATE_PRESENT );
-		EngineContext.Finish();
 		// Present the frame.
 		V( g_swapChain->Present1( Core::g_config.vsync ? 1 : 0, 0, &param ) );
 		g_CurrentDPIdx = (g_CurrentDPIdx + 1) % Core::g_config.swapChainDesc.BufferCount;
+	}
+
+	void UpdateGUI()
+	{
+		if (ImGui::CollapsingHeader( "Stats", (const char*)0, true, true ))
+		{
+			HRESULT hr;
+			V( Graphics::g_adaptor->QueryVideoMemoryInfo( 0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &Graphics::g_stats.localVideoMemoryInfo ) );
+			float memBudget = Graphics::g_stats.localVideoMemoryInfo.Budget / 1024.f / 1024.f;
+			float memUsed = Graphics::g_stats.localVideoMemoryInfo.CurrentUsage / 1024.f / 1024.f;
+			float usedMemPct = memUsed / memBudget;
+			char buf[32];
+			sprintf( buf, "%4.2fMB/%4.fMB", memUsed, memBudget );
+			ImGui::Text( "GPU memory usage" );
+			ImGui::ProgressBar( usedMemPct, ImVec2( -1.f, 0.f ), buf );
+
+			ImGui::Columns( 3, "cmdAllocatorInfo" );
+			ImGui::Separator();
+			ImGui::Text( "Allocator Type" ); ImGui::NextColumn();
+			ImGui::Text( "Created" ); ImGui::NextColumn();
+			ImGui::Text( "Ready" ); ImGui::NextColumn();
+			ImGui::Separator();
+			const char* name[4] = {"Direct", "Bundle", "Compute", "Copy"};
+			for (int i = 0; i < 4; ++i)
+			{
+				//ImGui::NextColumn();
+				ImGui::Text( name[i] ); ImGui::NextColumn();
+				ImGui::Text( "%d", Graphics::g_stats.allocatorCreated[i] ); ImGui::NextColumn();
+				ImGui::Text( "%d", Graphics::g_stats.allocatorReady[i] ); ImGui::NextColumn();
+			}
+			ImGui::Columns( 1 );
+			ImGui::Separator();
+			ImGui::Text( "RenderThread Stall Count: %d/frame  Time:%4.2fms", Graphics::g_stats.cpuStallCountPerFrame, Graphics::g_stats.cpuStallTimePerFrame );
+			Graphics::g_stats.cpuStallCountPerFrame = 0;
+			Graphics::g_stats.cpuStallTimePerFrame = 0;
+		}
+		if (ImGui::CollapsingHeader( "Render Targets" ))
+		{
+			ImTextureID tex_id = (void*)&Graphics::g_SceneColorBuffer.GetSRV();
+			ImGui::Image( tex_id, ImVec2( 640, 480 ) ); 
+			ImTextureID tex_id1 = (void*)&FXAA::g_LumaBuffer.GetSRV();
+			ImGui::Image( tex_id1, ImVec2( 640, 480 ) );
+		}
 	}
 }

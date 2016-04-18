@@ -5,6 +5,7 @@
 #include "GPU_Profiler.h"
 #include "DXHelper.h"
 #include "GuiRenderer.h"
+#include "FXAA.h"
 #include <shellapi.h>
 
 #include "Graphics.h"
@@ -42,8 +43,7 @@ namespace Core
 	double			g_elapsedTime = 0;
 	double			g_deltaTime = 0;
 
-	Settings		g_config = {};
-	Stats			g_stats = {};
+	Settings		g_config;
 	HWND			g_hwnd;
 	std::wstring	g_title = L"DX12Framework";
 	std::wstring	g_assetsPath;
@@ -153,7 +153,6 @@ namespace Core
 		g_assetsPath = assetsPath;
 
 		Graphics::Init();
-		GuiRenderer::Initialize();
 		application.ParseCommandLineArgs();
 		application.OnInit();
 	}
@@ -163,7 +162,6 @@ namespace Core
 		HRESULT hr;
 		// Initialize framework level graphics resource
 		VRET( Graphics::CreateResource() );
-		VRET( GuiRenderer::CreateResource() );
 		// Initialize the sample. OnInit is defined in each child-implementation of DXSample.
 		VRET( application.OnCreateResource() );
 
@@ -180,19 +178,14 @@ namespace Core
 	{
 		CommandContext& EngineContext = CommandContext::Begin( L"EngineContext" );
 		application.OnRender( EngineContext );
-		GuiRenderer::Render( EngineContext.GetGraphicsContext() );
-
-#ifndef RELEASE
-		GPU_Profiler::ProcessAndReadback( EngineContext );
-		GPU_Profiler::DrawStats( EngineContext.GetGraphicsContext() );
-#endif
+		if(g_config.FXAA)
+			FXAA::Render( EngineContext.GetComputeContext() );
 		Graphics::Present( EngineContext );
 	}
 
 	void FrameworkDestory( IDX12Framework& application )
 	{
 		application.OnDestroy();
-		GuiRenderer::Shutdown();
 		Graphics::Shutdown();
 		MsgPrinting::Destory();
 	}

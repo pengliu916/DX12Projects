@@ -5,6 +5,7 @@
 #include "Utility.h"
 #include "PipelineState.h"
 #include "RootSignature.h"
+#include "CommandSignature.h"
 #include "DynamicDescriptorHeap.h"
 #include "CmdListMngr.h"
 #include "Graphics.h"
@@ -81,8 +82,14 @@ public:
 	GraphicsContext& GetGraphicsContext();
 	ComputeContext& GetComputeContext();
 
+	void CopyBufferRegion( GpuResource& Dest, size_t DestOffset, GpuResource& Src, size_t SrcOffset, size_t NumBytes );
+	void CopySubResource( GpuResource& Dest, UINT DestSubIndex, GpuResource& Src, UINT SrcSubIndex );
+	void ResetCounter( StructuredBuffer& Buf, uint32_t Value = 0 );
+
 	static void InitializeBuffer( GpuResource& Dest, const void* Data, size_t NumBytes, bool UseOffset = false, size_t Offset = 0 );
 	static void InitializeTexture( GpuResource& Dest, UINT NumSubresources, D3D12_SUBRESOURCE_DATA SubData[] );
+
+	void FillBuffer( GpuResource& Dest, size_t DestOffset, DWParam Value, size_t NumByte );
 
 	void TransitionResource( GpuResource&  Resource, D3D12_RESOURCE_STATES NewState, bool FlushImmediate = false );
 	void BeginResourceTransition( GpuResource& Resource, D3D12_RESOURCE_STATES NewState, bool FlushImmediate = false );
@@ -128,6 +135,19 @@ protected:
 
 	D3D12_COMMAND_LIST_TYPE m_Type;
 };
+
+inline void CommandContext::CopyBufferRegion( GpuResource& Dest, size_t DestOffset, GpuResource& Src, size_t SrcOffset, size_t NumBytes )
+{
+	TransitionResource( Dest, D3D12_RESOURCE_STATE_COPY_DEST );
+	FlushResourceBarriers();
+	m_CommandList->CopyBufferRegion( Dest.GetResource(), DestOffset, Src.GetResource(), SrcOffset, NumBytes );
+}
+
+inline void CommandContext::ResetCounter( StructuredBuffer& Buf, uint32_t Value /* = 0 */ )
+{
+	FillBuffer( Buf.GetCounterBuffer(), 0, Value, sizeof( uint32_t ) );
+	TransitionResource( Buf.GetCounterBuffer(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS );
+}
 
 inline void CommandContext::SetDescriptorHeap( D3D12_DESCRIPTOR_HEAP_TYPE Type, ID3D12DescriptorHeap* HeapPtr )
 {
@@ -449,6 +469,7 @@ public:
 	void Dispatch1D( size_t ThreadCountX, size_t GroupSizeX = 64 );
 	void Dispatch2D( size_t ThreadCountX, size_t ThreadCountY, size_t GroupSizeX = 8, size_t GroupSizey = 8 );
 	void Dispatch3D( size_t ThreadCountX, size_t ThreadCountY, size_t ThreadCountZ, size_t GroupSizeX, size_t GroupSizeY, size_t GroupSizeZ );
+	void DispatchIndirect( GpuBuffer& ArgumentBuffer, size_t ArgumentBUfferOffset );
 };
 
 inline void ComputeContext::SetRootSignature( const RootSignature& RootSig )
@@ -565,4 +586,11 @@ inline void ComputeContext::Dispatch3D( size_t ThreadCountX, size_t ThreadCountY
 		DivideByMultiple( ThreadCountX, GroupSizeX ),
 		DivideByMultiple( ThreadCountY, GroupSizeY ),
 		DivideByMultiple( ThreadCountZ, GroupSizeZ ) );
+}
+
+inline void ComputeContext::DispatchIndirect( GpuBuffer& ArgumentBuffer, size_t ArgumentBUfferOffset )
+{
+	FlushResourceBarriers();
+	m_DynamicDescriptorHeap.CommitComputeRootDescriptorTables( m_CommandList );
+	m_CommandList->ExecuteIndirect( Graphics::g_DispatchIndirectCommandSignature.GetSignature(), 1, ArgumentBuffer.GetResource(), (UINT64)ArgumentBUfferOffset, nullptr, 0 );
 }

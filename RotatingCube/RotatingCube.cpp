@@ -84,8 +84,8 @@ HRESULT RotatingCube::LoadAssets()
 	m_GraphicsPSO.SetDepthStencilState( Graphics::g_DepthStateReadWrite );
 	m_GraphicsPSO.SetSampleMask( UINT_MAX );
 	m_GraphicsPSO.SetPrimitiveTopologyType( D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE );
-	DXGI_FORMAT ColorFormat = Graphics::g_pDisplayPlanes[0].GetFormat();
-	DXGI_FORMAT DepthFormat = m_DepthBuffer.GetFormat();
+	DXGI_FORMAT ColorFormat = Graphics::g_SceneColorBuffer.GetFormat();
+	DXGI_FORMAT DepthFormat = Graphics::g_SceneDepthBuffer.GetFormat();
 	m_GraphicsPSO.SetRenderTargetFormats( 1, &ColorFormat, DepthFormat );
 
 	m_GraphicsPSO.Finalize();
@@ -123,8 +123,6 @@ HRESULT RotatingCube::LoadSizeDependentResource()
 	uint32_t width = Core::g_config.swapChainDesc.Width;
 	uint32_t height = Core::g_config.swapChainDesc.Height;
 
-	m_DepthBuffer.Create( L"Depth Buffer", width, height, DXGI_FORMAT_D32_FLOAT );
-
 	float fAspectRatio = width / (FLOAT)height;
 	m_camera.Projection( XM_PIDIV2 / 2, fAspectRatio );
 	return S_OK;
@@ -155,13 +153,13 @@ void RotatingCube::OnRender( CommandContext& EngineContext )
 	GraphicsContext& gfxContext = GraphicsContext::Begin( L"Render" );
 	{
 		GPU_PROFILE( gfxContext, L"Render" );
-		gfxContext.ClearColor( Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx] );
-		gfxContext.ClearDepth( m_DepthBuffer );
+		gfxContext.ClearColor( Graphics::g_SceneColorBuffer );
+		gfxContext.ClearDepth( Graphics::g_SceneDepthBuffer );
 		gfxContext.SetRootSignature( m_RootSignature );
 		gfxContext.SetPipelineState( m_GraphicsPSO );
 		gfxContext.SetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 		gfxContext.SetDynamicConstantBufferView( 0, sizeof( CBuffer ), (void*)(cbufferData) );
-		gfxContext.SetRenderTargets( 1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], &m_DepthBuffer );
+		gfxContext.SetRenderTargets( 1, &Graphics::g_SceneColorBuffer, &Graphics::g_SceneDepthBuffer );
 		gfxContext.SetViewport( Graphics::g_DisplayPlaneViewPort );
 		gfxContext.SetScisor( Graphics::g_DisplayPlaneScissorRect );
 		gfxContext.SetVertexBuffer( 0, m_VertexBuffer.VertexBufferView() );

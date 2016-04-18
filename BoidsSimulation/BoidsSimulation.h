@@ -52,7 +52,6 @@ private:
 
 	// Buffers
 	Texture				m_ColorMapTex;
-	DepthBuffer			m_DepthBuffer;
 	StructuredBuffer	m_BoidsPosVelBuffer[2];
 	DynAlloc*			m_pConstantBuffer;
 
@@ -69,6 +68,7 @@ private:
 	bool				m_NeedUpdate = true;
 	bool				m_ForcePerFrameSimulation = true;
 	bool				m_PauseSimulation = false;
+	bool				m_SeperateContext = false;
 	float				m_SimulationDelta = 0.015f;
 	float				m_SimulationTimer = 0.0f;
 	float				m_SimulationMaxDelta = 0.08f;

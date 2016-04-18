@@ -59,3 +59,4 @@ CBUFFER_ALIGN STRUCT( cbuffer ) PixelShaderParams REGISTER( b0 )
 #endif // __cplusplus
 };
 #endif // __cplusplus || ( __hlsl && Pixel_Shader )
+#undef CBUFFER_ALIGN

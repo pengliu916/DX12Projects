@@ -3,7 +3,6 @@
 #include "GpuResource.h"
 #include <vector>
 #include <queue>
-#include <memory>
 
 // Constant blocks must be multiples of 16 constants @ 16 bytes each
 #define DEFAULT_ALIGN 256

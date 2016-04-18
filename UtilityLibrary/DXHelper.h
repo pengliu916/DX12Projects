@@ -1,7 +1,7 @@
 #pragma once
 #include "Utility.h"
 
-#define CBUFFER_ALIGN __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
+//#define CBUFFER_ALIGN __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
 
 inline HRESULT ReadDataFromFile( LPCWSTR filename, byte** data, UINT* size )
 {

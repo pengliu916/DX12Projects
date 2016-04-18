@@ -52,6 +52,10 @@
     </ClCompile>
     <ClCompile Include="GuiRenderer.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
+    <ClCompile Include="FXAA.cpp" />
+    <ClCompile Include="CommandSignature.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utility.h" />
@@ -119,6 +123,10 @@
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="dds.h" />
     <ClInclude Include="DDSTextureLoader.h" />
+    <ClInclude Include="FXAA.h" />
+    <ClInclude Include="CommandSignature.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Core">
@@ -132,5 +140,10 @@
     <CustomBuild Include="TextRenderer_SharedHeader.inl" />
     <CustomBuild Include="TextRenderer.hlsl" />
     <CustomBuild Include="GPU_Profiler.hlsl" />
+    <CustomBuild Include="FXAA.hlsl" />
+    <CustomBuild Include="FXAA_SharedHeader.inl" />
+    <CustomBuild Include="Graphics.hlsl">
+      <Filter>Core</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

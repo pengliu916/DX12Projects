@@ -209,21 +209,52 @@ inline D3D12_INDEX_BUFFER_VIEW GpuBuffer::IndexBufferView( size_t StartIndex /*=
 }
 
 //--------------------------------------------------------------------------------------
-// StructureBuffer
-//--------------------------------------------------------------------------------------
-class StructuredBuffer :public GpuBuffer
-{
-public:
-	virtual void CreateDerivedViews() override;
-};
-
-//--------------------------------------------------------------------------------------
 // ByteAddressBuffer
 //--------------------------------------------------------------------------------------
 class ByteAddressBuffer : public GpuBuffer
 {
 public:
 	virtual void CreateDerivedViews() override;
+};
+
+//--------------------------------------------------------------------------------------
+// StructureBuffer
+//--------------------------------------------------------------------------------------
+class StructuredBuffer :public GpuBuffer
+{
+public:
+	virtual void Destroy() override;
+	virtual void CreateDerivedViews() override;
+
+	ByteAddressBuffer& GetCounterBuffer();
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetCounterSRV( CommandContext& Context );
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetCounterUAV( CommandContext& Context );
+
+private:
+	ByteAddressBuffer m_CounterBuffer;
+};
+
+//--------------------------------------------------------------------------------------
+// TypedBuffer
+//--------------------------------------------------------------------------------------
+class TypedBuffer : public GpuBuffer
+{
+public:
+	TypedBuffer( DXGI_FORMAT Format ) : m_DataFormat( Format ) {}
+	virtual void CreateDerivedViews( void ) override;
+
+protected:
+	DXGI_FORMAT m_DataFormat;
+};
+
+//--------------------------------------------------------------------------------------
+// IndirectArgsBuffer
+//--------------------------------------------------------------------------------------
+class IndirectArgsBuffer : public ByteAddressBuffer
+{
+public:
+	IndirectArgsBuffer() {}
 };
 
 //--------------------------------------------------------------------------------------

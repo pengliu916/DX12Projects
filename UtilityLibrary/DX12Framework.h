@@ -30,23 +30,15 @@ namespace Core
 
 	struct Settings
 	{
-		bool					enableFullScreen;
-		bool					warpDevice;
-		DXGI_SWAP_CHAIN_DESC1	swapChainDesc;
+		bool					enableFullScreen = false;
+		bool					warpDevice = false;
+		DXGI_SWAP_CHAIN_DESC1	swapChainDesc = {};
 
 		// Free to be changed after init
 		//Vsync
-		bool					vsync;
-		bool					showPerf;
-	};
-
-	struct Stats
-	{
-		DXGI_QUERY_VIDEO_MEMORY_INFO	localVideoMemoryInfo = {};
-		uint16_t						allocatorCreated[4] = {};
-		uint16_t						allocatorReady[4] = {};
-		uint16_t						cpuStallCountPerFrame = 0;
-		double							cpuStallTimePerFrame = 0;
+		bool					vsync = false;
+		bool					FXAA = true;
+		bool					showPerf = true;
 	};
 
 	class IDX12Framework
@@ -72,7 +64,6 @@ namespace Core
 	extern double		g_elapsedTime;			// Elapsed time since program start
 	extern double		g_deltaTime;			// Elapsed time since last frame
 	extern Settings     g_config;				// gfx settings
-	extern Stats		g_stats;
 	extern HWND         g_hwnd;					// Window handle.
 	extern std::wstring g_title;
 	extern std::wstring g_assetsPath;			// Root assets path.   

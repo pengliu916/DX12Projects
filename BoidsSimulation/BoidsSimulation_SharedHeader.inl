@@ -70,3 +70,5 @@ struct FishData
 	float3 pos;
 	float3 vel;
 };
+
+#undef CBUFFER_ALIGN

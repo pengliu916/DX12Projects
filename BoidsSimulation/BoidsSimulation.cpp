@@ -158,8 +158,8 @@ HRESULT BoidsSimulation::LoadAssets()
 	m_GraphicsPSO.SetDepthStencilState( Graphics::g_DepthStateReadWrite );
 	m_GraphicsPSO.SetSampleMask( UINT_MAX );
 	m_GraphicsPSO.SetPrimitiveTopologyType( D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE );
-	DXGI_FORMAT ColorFormat = Graphics::g_pDisplayPlanes[0].GetFormat();
-	DXGI_FORMAT DepthFormat = m_DepthBuffer.GetFormat();
+	DXGI_FORMAT ColorFormat = Graphics::g_SceneColorBuffer.GetFormat();
+	DXGI_FORMAT DepthFormat = Graphics::g_SceneDepthBuffer.GetFormat();
 	m_GraphicsPSO.SetRenderTargetFormats( 1, &ColorFormat, DepthFormat );
 
 	m_GraphicsPSO.Finalize();
@@ -191,8 +191,6 @@ HRESULT BoidsSimulation::LoadSizeDependentResource()
 	uint32_t width = Core::g_config.swapChainDesc.Width;
 	uint32_t height = Core::g_config.swapChainDesc.Height;
 
-	m_DepthBuffer.Create( L"Depth Buffer", width, height, DXGI_FORMAT_D32_FLOAT );
-
 	float fAspectRatio = width / (FLOAT)height;
 	m_camera.Projection( XM_PIDIV2 / 2, fAspectRatio );
 	return S_OK;
@@ -206,6 +204,7 @@ void BoidsSimulation::OnUpdate()
 	bool valueChanged = false;
 	if (ImGui::Begin( "BoidsSimulation", &showPanel ))
 	{
+		ImGui::Checkbox( "Separate Context", &m_SeperateContext);
 		ImGui::Checkbox( "PerFrame Simulation", &m_ForcePerFrameSimulation ); ImGui::SameLine();
 		static char pauseSim[] = "Pause Simulation";
 		static char continueSim[] = "Continue Simulation";
@@ -254,7 +253,7 @@ void BoidsSimulation::OnRender( CommandContext& EngineContext )
 	for (int i = 0; i < SimulationCnt; ++i)
 	{
 		swprintf( timerName, L"Simulation %d", i );
-		ComputeContext& cptContext = EngineContext.GetComputeContext();
+		ComputeContext& cptContext = m_SeperateContext? ComputeContext::Begin(L"Simulating"): EngineContext.GetComputeContext();
 		{
 			GPU_PROFILE( cptContext, timerName );
 			cptContext.SetRootSignature( m_RootSignature );
@@ -274,6 +273,7 @@ void BoidsSimulation::OnRender( CommandContext& EngineContext )
 			cptContext.BeginResourceTransition( m_BoidsPosVelBuffer[1-m_OnStageBufIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE );
 			cptContext.BeginResourceTransition( m_BoidsPosVelBuffer[m_OnStageBufIdx], D3D12_RESOURCE_STATE_UNORDERED_ACCESS );
 		}
+		if (m_SeperateContext) cptContext.Finish();
 	}
 
 	// Record all the commands we need to render the scene into the command list.
@@ -285,12 +285,12 @@ void BoidsSimulation::OnRender( CommandContext& EngineContext )
 	// We should do m_renderCB.mWorldViewProj = XMMatrixTranspose(XMMatricMultiply(proj,view))
 	m_RenderCB.mWorldViewProj = XMMatrixMultiply( view, proj );
 
-	GraphicsContext& gfxContext = EngineContext.GetGraphicsContext();
+	GraphicsContext& gfxContext = m_SeperateContext? GraphicsContext::Begin(L"Rendering") : EngineContext.GetGraphicsContext();
 	{
 		GPU_PROFILE( gfxContext, L"Render" );
 		gfxContext.TransitionResource( m_BoidsPosVelBuffer[m_OnStageBufIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE );
-		gfxContext.ClearColor( Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx] );
-		gfxContext.ClearDepth( m_DepthBuffer );
+		gfxContext.ClearColor( Graphics::g_SceneColorBuffer );
+		gfxContext.ClearDepth( Graphics::g_SceneDepthBuffer );
 		gfxContext.SetRootSignature( m_RootSignature );
 		gfxContext.SetPipelineState( m_GraphicsPSO );
 		gfxContext.SetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP );
@@ -303,7 +303,7 @@ void BoidsSimulation::OnRender( CommandContext& EngineContext )
 		gfxContext.SetDynamicConstantBufferView( 0, sizeof( RenderCB ), (void*)(&m_RenderCB) );
 		gfxContext.SetBufferSRV( 2, m_BoidsPosVelBuffer[m_OnStageBufIdx] );
 		gfxContext.SetDynamicDescriptors( 4, 0, 1, &m_ColorMapTex.GetSRV() );
-		gfxContext.SetRenderTargets( 1, &Graphics::g_pDisplayPlanes[Graphics::g_CurrentDPIdx], &m_DepthBuffer );
+		gfxContext.SetRenderTargets( 1, &Graphics::g_SceneColorBuffer, &Graphics::g_SceneDepthBuffer );
 		gfxContext.SetViewport( Graphics::g_DisplayPlaneViewPort );
 		gfxContext.SetScisor( Graphics::g_DisplayPlaneScissorRect );
 		gfxContext.SetVertexBuffer( 0, m_VertexBuffer.VertexBufferView() );
@@ -311,12 +311,12 @@ void BoidsSimulation::OnRender( CommandContext& EngineContext )
 		gfxContext.BeginResourceTransition( m_BoidsPosVelBuffer[m_OnStageBufIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE );
 		gfxContext.BeginResourceTransition( m_BoidsPosVelBuffer[1 - m_OnStageBufIdx], D3D12_RESOURCE_STATE_UNORDERED_ACCESS );
 	}
+	if (m_SeperateContext) gfxContext.Finish();
 }
 
 HRESULT BoidsSimulation::OnSizeChanged()
 {
 	HRESULT hr;
-	m_DepthBuffer.Destroy();
 	VRET( LoadSizeDependentResource() );
 	return S_OK;
 }

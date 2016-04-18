@@ -83,3 +83,4 @@ CBUFFER_ALIGN STRUCT( cbuffer ) ConstantBuffer REGISTER( b0 )
 	};
 #endif
 };
+#undef CBUFFER_ALIGN

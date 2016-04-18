@@ -7229,7 +7229,7 @@ namespace TextRenderer
 		return newFont;
 	}
 
-	void Initialize()
+	void CreateResource()
 	{
 		s_RootSignature.Reset( 3, 1 );
 		s_RootSignature.InitStaticSampler( 0, Graphics::g_SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_PIXEL );

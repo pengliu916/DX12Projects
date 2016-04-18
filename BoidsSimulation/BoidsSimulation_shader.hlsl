@@ -218,6 +218,7 @@ void csmain( uint3 Gid : SV_GroupID, uint3 DTid : SV_DispatchThreadID, uint3 GTi
 		accForce += Cohesion( localVP.pos, avgPos + normalize( localVP.vel )*0.2f );
 		accForce += Alignment( localVP.vel, avgVel )*predatorFactor;
 		accForce += Flee( localVP.pos, localVP.vel, localFleeSourcePos )*predatorFactor;
+		accForce += (avgPos - localVP.pos)*0.5f;
 	}
 
 	float maxForce;
@@ -232,7 +233,7 @@ void csmain( uint3 Gid : SV_GroupID, uint3 DTid : SV_DispatchThreadID, uint3 GTi
 		minSpeed = fMinSpeed;
 	}
 	float3 seek = Seeking( localVP.pos, localVP.vel, seekPos );
-	accForce += seek;
+	accForce += ((accCount == 0) ? 100.f*seek : seek);
 	//accForce.y*=0.8;
 	float accForceSqr = dot( accForce, accForce ) + softeningSquared;
 	float invForceLen = 1.0f / sqrt( accForceSqr );

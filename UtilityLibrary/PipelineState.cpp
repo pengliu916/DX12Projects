@@ -1,7 +1,6 @@
 #include "LibraryHeader.h"
 
 #include <unordered_map>
-#include <memory>
 #include <thread>
 
 #include "RootSignature.h"

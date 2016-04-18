@@ -1,7 +1,7 @@
 #include "LibraryHeader.h"
-#include "DX12Framework.h"
 #include "Utility.h"
-
+#include "DX12Framework.h"
+#include "Graphics.h"
 #include "CmdListMngr.h"
 
 //--------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ ID3D12CommandAllocator* CommandAllocatorPool::RequestAllocator( uint64_t Complet
 			V( pAllocator->Reset() );
 			m_ReadyAllocators.pop();
 		}
-		Core::g_stats.allocatorReady[m_cCommandListType] = (uint16_t)m_ReadyAllocators.size();
+		Graphics::g_stats.allocatorReady[m_cCommandListType] = (uint16_t)m_ReadyAllocators.size();
 	}
 	if (pAllocator == nullptr)
 	{
@@ -57,7 +57,7 @@ ID3D12CommandAllocator* CommandAllocatorPool::RequestAllocator( uint64_t Complet
 		swprintf( AllocatorName, 32, L"CommandAllocator %zu", m_AllocatorPool.size() );
 		pAllocator->SetName( AllocatorName );
 		m_AllocatorPool.push_back( pAllocator );
-		Core::g_stats.allocatorCreated[m_cCommandListType] = (uint16_t)m_AllocatorPool.size();
+		Graphics::g_stats.allocatorCreated[m_cCommandListType] = (uint16_t)m_AllocatorPool.size();
 	}
 
 	return pAllocator;
@@ -158,8 +158,8 @@ void CommandQueue::WaitForFence( uint64_t FenceValue )
 		QueryPerformanceCounter( &currentTick );
 		endTick = static_cast<int64_t>(currentTick.QuadPart);
 
-		Core::g_stats.cpuStallCountPerFrame++;
-		Core::g_stats.cpuStallTimePerFrame += (double)(endTick - startTick) / Core::g_tickesPerSecond * 1000.f;
+		Graphics::g_stats.cpuStallCountPerFrame++;
+		Graphics::g_stats.cpuStallTimePerFrame += (double)(endTick - startTick) / Core::g_tickesPerSecond * 1000.f;
 		m_LastCompletedFenceValue = FenceValue;
 	}
 }

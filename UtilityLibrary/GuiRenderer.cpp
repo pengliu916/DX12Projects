@@ -10,6 +10,7 @@
 #include "PipelineState.h"
 #include "RootSignature.h"
 #include "SamplerMngr.h"
+#include "FXAA.h"
 #include "Graphics.h"
 
 #define DIRECTINPUT_VERSION 0x0800
@@ -110,7 +111,7 @@ namespace
 					else
 					{
 						const D3D12_RECT r = {(LONG)pcmd->ClipRect.x, (LONG)pcmd->ClipRect.y, (LONG)pcmd->ClipRect.z, (LONG)pcmd->ClipRect.w};
-						context.SetDynamicDescriptors( 1, 0, 1, &reinterpret_cast<Texture*>(pcmd->TextureId)->GetSRV() );
+						context.SetDynamicDescriptors( 1, 0, 1, (D3D12_CPU_DESCRIPTOR_HANDLE*)(pcmd->TextureId));
 						context.SetScisor( r );
 						context.DrawIndexed( pcmd->ElemCount, idx_offset, vtx_offset );
 					}
@@ -132,7 +133,7 @@ namespace
 		_texture.Create( width, height, DXGI_FORMAT_R8G8B8A8_UNORM, pixels );
 
 		// Store our identifier
-		io.Fonts->TexID = (void *)&_texture;
+		io.Fonts->TexID = (void *)&(_texture.GetSRV());
 	}
 }
 
@@ -269,7 +270,7 @@ HRESULT GuiRenderer::CreateResource()
 	_graphicsPSO.SetRasterizerState( Graphics::g_RasterizerTwoSided );
 	_graphicsPSO.SetDepthStencilState( Graphics::g_DepthStateDisabled );
 	_graphicsPSO.SetPrimitiveTopologyType( D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE );
-	_graphicsPSO.SetRenderTargetFormats( 1, &Graphics::g_pDisplayPlanes[0].GetFormat(), DXGI_FORMAT_D32_FLOAT );
+	_graphicsPSO.SetRenderTargetFormats( 1, &Graphics::g_pDisplayPlanes[0].GetFormat(), DXGI_FORMAT_UNKNOWN );
 	_graphicsPSO.Finalize();
 
 	CreateFontsTexture();
@@ -345,38 +346,8 @@ void GuiRenderer::Render( GraphicsContext& gfxContext )
 	static bool showEnginePenal = false;
 	if (ImGui::Begin( "Engine Penal", &showEnginePenal ))
 	{
-		if (ImGui::CollapsingHeader( "Stats", (const char*)0, true, true ))
-		{
-			HRESULT hr;
-			V( Graphics::g_adaptor->QueryVideoMemoryInfo( 0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &Core::g_stats.localVideoMemoryInfo ) );
-			float memBudget = Core::g_stats.localVideoMemoryInfo.Budget / 1024.f / 1024.f;
-			float memUsed = Core::g_stats.localVideoMemoryInfo.CurrentUsage / 1024.f / 1024.f;
-			float usedMemPct = memUsed / memBudget;
-			char buf[32];
-			sprintf( buf, "%4.2fMB/%4.fMB", memUsed, memBudget );
-			ImGui::Text( "GPU memory usage" );
-			ImGui::ProgressBar( usedMemPct, ImVec2( -1.f, 0.f ), buf );
-
-			ImGui::Columns( 3, "cmdAllocatorInfo" );
-			ImGui::Separator();
-			ImGui::Text( "Allocator Type" ); ImGui::NextColumn();
-			ImGui::Text( "Created" ); ImGui::NextColumn();
-			ImGui::Text( "Ready" ); ImGui::NextColumn();
-			ImGui::Separator();
-			const char* name[4] = {"Direct", "Bundle", "Compute", "Copy"};
-			for (int i = 0; i < 4; ++i)
-			{
-				//ImGui::NextColumn();
-				ImGui::Text( name[i] ); ImGui::NextColumn();
-				ImGui::Text( "%d", Core::g_stats.allocatorCreated[i] ); ImGui::NextColumn();
-				ImGui::Text( "%d", Core::g_stats.allocatorReady[i] ); ImGui::NextColumn();
-			}
-			ImGui::Columns( 1 );
-			ImGui::Separator();
-			ImGui::Text( "RenderThread Stall Count: %d/frame  Time:%4.2fms", Core::g_stats.cpuStallCountPerFrame, Core::g_stats.cpuStallTimePerFrame );
-			Core::g_stats.cpuStallCountPerFrame = 0;
-			Core::g_stats.cpuStallTimePerFrame = 0;
-		}
+		Graphics::UpdateGUI();
+		FXAA::UpdateGUI();
 	}
 	ImGui::ShowTestWindow();
 	ImGui::End();

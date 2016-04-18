@@ -173,6 +173,29 @@ ComputeContext& CommandContext::GetComputeContext()
 	return reinterpret_cast<ComputeContext&>(*this);
 }
 
+void CommandContext::CopySubResource( GpuResource& Dest, UINT DestSubIndex, GpuResource& Src, UINT SrcSubIndex )
+{
+	TransitionResource( Dest, D3D12_RESOURCE_STATE_COPY_DEST );
+	TransitionResource( Src, D3D12_RESOURCE_STATE_COPY_SOURCE );
+	FlushResourceBarriers();
+
+	D3D12_TEXTURE_COPY_LOCATION DestLocation =
+	{
+		Dest.GetResource(),
+		D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		DestSubIndex
+	};
+
+	D3D12_TEXTURE_COPY_LOCATION SrcLocation =
+	{
+		Src.GetResource(),
+		D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		SrcSubIndex
+	};
+
+	m_CommandList->CopyTextureRegion( &DestLocation, 0, 0, 0, &SrcLocation, nullptr );
+}
+
 void CommandContext::InitializeBuffer( GpuResource& Dest, const void* Data, size_t NumBytes, bool UseOffset /* = false */, size_t Offset /* = 0 */ )
 {
 	ID3D12Resource* UploadBuffer;
@@ -259,6 +282,15 @@ void CommandContext::InitializeTexture( GpuResource& Dest, UINT NumSubresources,
 	// Execute the command list and wait for it to finish then we can release the upload buffer
 	InitContext.Finish( true );
 	UploadBuffer->Release();
+}
+
+void CommandContext::FillBuffer( GpuResource& Dest, size_t DestOffset, DWParam Value, size_t NumByte )
+{
+	DynAlloc TempSpace = m_CpuLinearAllocator.Allocate( NumByte, 512 );
+	DWParam* ptr = (DWParam*)TempSpace.DataPtr;
+	for (int i = 0; i < DivideByMultiple( NumByte, sizeof(DWParam)); ++i)
+		*(ptr + i) = Value.Float;
+	CopyBufferRegion( Dest, DestOffset, TempSpace.Buffer, TempSpace.Offset, NumByte );
 }
 
 void CommandContext::TransitionResource( GpuResource& Resource, D3D12_RESOURCE_STATES NewState, bool FlushImmediate /* = false */ )

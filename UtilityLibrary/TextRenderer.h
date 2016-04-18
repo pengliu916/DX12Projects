@@ -8,7 +8,7 @@ namespace TextRenderer
 {
 #include "TextRenderer_SharedHeader.inl"
 
-	void Initialize();
+	void CreateResource();
 	void ShutDown();
 
 	class Font
